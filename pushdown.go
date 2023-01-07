@@ -20,7 +20,7 @@ import (
 //   - all: Gets all values in a bucket.
 //   - remote: Gets filtered values in a bucket.
 //   - local: Gets a part of values.
-//   - pushdown: Checks if remote filter must be used or not.
+//   - pushdown: Checks if a remote filter must be used or not.
 func FilterRemote[V, F any](
 	ctx context.Context,
 	b Bucket,
@@ -39,4 +39,31 @@ func FilterRemote[V, F any](
 			return local(values, filter), e
 		},
 	)(b)
+}
+
+// FilterRemoteNew creates a new closure which gets filtered rows.
+//
+// # Arguments
+//
+//   - all: Gets all values in a bucket.
+//   - remote: Gets filtered values in a bucket.
+//   - local: Gets a part of values.
+//   - pushdown: Checks if a remote filter must be used or not.
+func FilterRemoteNew[V, F any](
+	all func(context.Context, Bucket) ([]V, error),
+	remote func(ctx context.Context, b Bucket, filter F) ([]V, error),
+	local func(all []V, filter F) []V,
+	pushdown func(filter F) bool,
+) func(c context.Context, b Bucket, filter F) (rows []V, e error) {
+	return func(ctx context.Context, b Bucket, filter F) (rows []V, e error) {
+		return FilterRemote(
+			ctx,
+			b,
+			filter,
+			all,
+			remote,
+			local,
+			pushdown,
+		)
+	}
 }

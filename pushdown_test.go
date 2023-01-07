@@ -126,4 +126,37 @@ func TestPushdown(t *testing.T) {
 		})
 
 	})
+
+	t.Run("FilterRemoteNew", func(t *testing.T) {
+
+		t.Run("remote-only-filter", func(t *testing.T) {
+			var ctx context.Context = context.Background()
+			var bkt Bucket = BucketNew("items_2023_01_16_cafef00ddeadbeafface864299792458")
+			var flt filter = filter{
+				timestampLbi: "01:21:25.0Z",
+				timestampUbi: "01:24:04.8Z",
+			}
+			pushdown := func(_ filter) bool { return true }
+			rmt := func(_c context.Context, _b Bucket, _f filter) ([]item, error) {
+				return []item{
+					{key: "01:21:26.0Z", val: `{}`},
+					{key: "01:22:26.0Z", val: `{}`},
+					{key: "01:23:26.0Z", val: `{}`},
+				}, nil
+			}
+
+			var fr func(context.Context, Bucket, filter) ([]item, error) = FilterRemoteNew(
+				nil,
+				rmt,
+				nil,
+				pushdown,
+			)
+
+			filtered, e := fr(ctx, bkt, flt)
+
+			t.Run("No error", assertNil(e))
+			t.Run("Length match", assertEq(len(filtered), 3))
+		})
+
+	})
 }
