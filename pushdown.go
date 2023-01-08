@@ -123,3 +123,11 @@ func PushdownNewByCost[F any](
 		return s.UseIxScan()
 	}
 }
+
+func (p PushDown[F]) And(other PushDown[F]) PushDown[F] {
+	return func(filter F) (useRemoteFilter bool) {
+		var a bool = p(filter)
+		var b bool = other(filter)
+		return a && b
+	}
+}

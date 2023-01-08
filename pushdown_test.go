@@ -262,4 +262,54 @@ func TestPushdown(t *testing.T) {
 		var useIxScan bool = pushdown(filter)
 		t.Run("use ix scan", assertEq(useIxScan, true))
 	})
+
+	t.Run("PushDown", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("And", func(t *testing.T) {
+			t.Parallel()
+
+			t.Run("limit and cost", func(t *testing.T) {
+				t.Parallel()
+
+				const ixScanLimit float64 = 10.0
+				const maxRowsPerSecond float64 = 1.0
+				const latencyByIxScan float64 = 1.0
+				const latencyBySqScan float64 = 10.0
+				var filter testFilterUnixtime = testFilterUnixtime{lbi: 0.0, ubi: 1.0}
+
+				var byLimit PushDown[testFilterUnixtime] = PushdownNewByIxScanLimit(
+					ixScanLimit,
+					func(f testFilterUnixtime) ScanEstimate {
+						var estimatedScans float64 = f.estimateScansByRate(maxRowsPerSecond)
+						return ScanEstimateNew(
+							estimatedScans,
+							1.0,
+						)
+					},
+				)
+
+				var byCost PushDown[testFilterUnixtime] = PushdownNewByCost(
+					func(f testFilterUnixtime) ScanEstimates {
+						var estimatedScans float64 = f.estimateScansByRate(maxRowsPerSecond)
+						return ScanEstimatesNew(
+							ScanEstimateNew(
+								estimatedScans,
+								latencyByIxScan,
+							),
+							ScanEstimateNew(
+								estimatedScans,
+								latencyBySqScan,
+							),
+						)
+					},
+				)
+
+				var pushAnd PushDown[testFilterUnixtime] = byLimit.And(byCost)
+
+				var useIxScan bool = pushAnd(filter)
+				t.Run("use ix scan", assertEq(useIxScan, true))
+			})
+		})
+	})
 }
