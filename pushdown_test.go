@@ -16,9 +16,13 @@ type item struct {
 }
 
 func TestPushdown(t *testing.T) {
+	t.Parallel()
 	t.Run("FilterRemote", func(t *testing.T) {
+		t.Parallel()
 
 		t.Run("local-only-nop-filter", func(t *testing.T) {
+			t.Parallel()
+
 			var ctx context.Context = context.Background()
 			var bkt Bucket = BucketNew("items_2023_01_16_cafef00ddeadbeafface864299792458")
 			var flt filter = filter{
@@ -54,6 +58,8 @@ func TestPushdown(t *testing.T) {
 		})
 
 		t.Run("local-only-filter", func(t *testing.T) {
+			t.Parallel()
+
 			var ctx context.Context = context.Background()
 			var bkt Bucket = BucketNew("items_2023_01_16_cafef00ddeadbeafface864299792458")
 			var flt filter = filter{
@@ -96,6 +102,8 @@ func TestPushdown(t *testing.T) {
 		})
 
 		t.Run("remote-only-filter", func(t *testing.T) {
+			t.Parallel()
+
 			var ctx context.Context = context.Background()
 			var bkt Bucket = BucketNew("items_2023_01_16_cafef00ddeadbeafface864299792458")
 			var flt filter = filter{
@@ -128,8 +136,11 @@ func TestPushdown(t *testing.T) {
 	})
 
 	t.Run("FilterRemoteNew", func(t *testing.T) {
+		t.Parallel()
 
 		t.Run("remote-only-filter", func(t *testing.T) {
+			t.Parallel()
+
 			var ctx context.Context = context.Background()
 			var bkt Bucket = BucketNew("items_2023_01_16_cafef00ddeadbeafface864299792458")
 			var flt filter = filter{
