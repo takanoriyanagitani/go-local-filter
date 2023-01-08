@@ -21,3 +21,20 @@ func (u Unpack[P, U]) NewAll(
 		)(b)
 	}
 }
+
+func RemoteFilterNewUnpacked[P, U, F any](
+	unpack Unpack[P, U],
+	remote func(ctx context.Context, b Bucket, filter F) (packed []P, e error),
+) func(ctx context.Context, b Bucket, filter F) (unpacked []U, e error) {
+	return func(ctx context.Context, b Bucket, filter F) (unpacked []U, e error) {
+		return composeErr(
+			func(bkt Bucket) (packed []P, e error) { return remote(ctx, bkt, filter) },
+			func(packed []P) (unpacked []U, e error) {
+				for _, packedItem := range packed {
+					unpacked = append(unpacked, unpack(packedItem)...)
+				}
+				return
+			},
+		)(b)
+	}
+}

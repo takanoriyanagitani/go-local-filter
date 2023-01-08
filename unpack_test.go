@@ -41,6 +41,8 @@ func TestUnpack(t *testing.T) {
 			t.Parallel()
 
 			t.Run("empty", func(t *testing.T) {
+				t.Parallel()
+
 				getPacked := func(_ context.Context, _b Bucket) ([]testPackedRow, error) {
 					return nil, nil
 				}
@@ -56,6 +58,8 @@ func TestUnpack(t *testing.T) {
 			})
 
 			t.Run("single", func(t *testing.T) {
+				t.Parallel()
+
 				getPacked := func(_ context.Context, _b Bucket) ([]testPackedRow, error) {
 					return []testPackedRow{
 						{key: 0x42, val: 0x0123456789abcdef},
@@ -73,6 +77,8 @@ func TestUnpack(t *testing.T) {
 			})
 
 			t.Run("double", func(t *testing.T) {
+				t.Parallel()
+
 				getPacked := func(_ context.Context, _b Bucket) ([]testPackedRow, error) {
 					return []testPackedRow{
 						{key: 0x42, val: 0x0123456789abcdef},
