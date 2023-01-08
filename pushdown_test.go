@@ -15,6 +15,17 @@ type item struct {
 	val string
 }
 
+type testFilterUnixtime struct {
+	lbi float64
+	ubi float64
+}
+
+func (t testFilterUnixtime) toDuration() float64 { return t.ubi - t.lbi }
+func (t testFilterUnixtime) estimateScansByRate(maxRowsPerSecond float64) float64 {
+	var duration float64 = t.toDuration()
+	return duration * maxRowsPerSecond
+}
+
 func TestPushdown(t *testing.T) {
 	t.Parallel()
 	t.Run("FilterRemote", func(t *testing.T) {
@@ -169,5 +180,86 @@ func TestPushdown(t *testing.T) {
 			t.Run("Length match", assertEq(len(filtered), 3))
 		})
 
+	})
+
+	t.Run("ScanEstimate", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("ToCost", func(t *testing.T) {
+			t.Parallel()
+
+			var e ScanEstimate = ScanEstimateNew(10.0, 1)
+			var costInUs float64 = e.ToCost()
+			t.Run("10 us", assertEq(costInUs, 10.0))
+		})
+
+		t.Run("UseIxScanByLimit", func(t *testing.T) {
+			t.Parallel()
+
+			t.Run("ix scan", func(t *testing.T) {
+				t.Parallel()
+
+				var e ScanEstimate = ScanEstimateNew(9.0, 1.0)
+				var useIxScan bool = e.UseIxScanByCount(10.0)
+				t.Run("use ix scan", assertEq(useIxScan, true))
+			})
+		})
+	})
+
+	t.Run("ScanEstimates", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("UseIxScan", func(t *testing.T) {
+			t.Parallel()
+
+			t.Run("ix scan", func(t *testing.T) {
+				t.Parallel()
+
+				var rows float64 = 9.0
+				var ix ScanEstimate = ScanEstimateNew(rows, 1.0)
+				var sq ScanEstimate = ScanEstimateNew(rows, 10.0)
+				var e ScanEstimates = ScanEstimatesNew(ix, sq)
+				var useIxScan bool = e.UseIxScan()
+				t.Run("use ix scan", assertEq(useIxScan, true))
+			})
+		})
+	})
+
+	t.Run("PushdownNewByIxScanLimit", func(t *testing.T) {
+		t.Parallel()
+
+		const ixScanLimit float64 = 10.0
+		const maxRowsPerSecond float64 = 1.0
+
+		var filter testFilterUnixtime = testFilterUnixtime{lbi: 0.0, ubi: 1.0}
+		var pushdown PushDown[testFilterUnixtime] = PushdownNewByIxScanLimit(
+			ixScanLimit,
+			func(f testFilterUnixtime) ScanEstimate {
+				var estimatedRows float64 = f.estimateScansByRate(maxRowsPerSecond)
+				return ScanEstimateNew(estimatedRows, 1.0)
+			},
+		)
+		var useRemoteFilter bool = pushdown(filter)
+		t.Run("remote filter must be used", assertEq(useRemoteFilter, true))
+	})
+
+	t.Run("PushdownNewByCost", func(t *testing.T) {
+		t.Parallel()
+
+		const maxRowsPerSecond float64 = 1.0
+
+		var filter testFilterUnixtime = testFilterUnixtime{lbi: 0.0, ubi: 1.0}
+		var pushdown PushDown[testFilterUnixtime] = PushdownNewByCost(
+			func(f testFilterUnixtime) ScanEstimates {
+				var estimatedScans float64 = f.estimateScansByRate(maxRowsPerSecond)
+				return ScanEstimatesNew(
+					ScanEstimateNew(estimatedScans, 1.0),
+					ScanEstimateNew(estimatedScans, 10.0),
+				)
+			},
+		)
+
+		var useIxScan bool = pushdown(filter)
+		t.Run("use ix scan", assertEq(useIxScan, true))
 	})
 }

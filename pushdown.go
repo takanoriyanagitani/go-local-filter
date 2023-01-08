@@ -67,3 +67,59 @@ func FilterRemoteNew[V, F any](
 		)
 	}
 }
+
+type PushDown[F any] func(filter F) bool
+
+type ScanEstimate struct {
+	scans   float64
+	latency float64
+}
+
+func (e ScanEstimate) ToCost() float64 { return e.scans * e.latency }
+
+func ScanEstimateNew(numberOfScans, latencyPerScan float64) ScanEstimate {
+	return ScanEstimate{
+		scans:   numberOfScans,
+		latency: latencyPerScan,
+	}
+}
+
+func (s ScanEstimate) UseIxScanByCount(limit float64) (useIxScan bool) {
+	return s.scans < limit
+}
+
+func PushdownNewByIxScanLimit[F any](
+	limit float64,
+	filter2scan func(filter F) ScanEstimate,
+) PushDown[F] {
+	return func(filter F) (useRemoteFilter bool) {
+		var s ScanEstimate = filter2scan(filter)
+		return s.UseIxScanByCount(limit)
+	}
+}
+
+type ScanEstimates struct {
+	ix ScanEstimate
+	sq ScanEstimate
+}
+
+func ScanEstimatesNew(ixscan, sqscan ScanEstimate) ScanEstimates {
+	return ScanEstimates{
+		ix: ixscan,
+		sq: sqscan,
+	}
+}
+
+func (s ScanEstimates) toIxScanCost() float64 { return s.ix.ToCost() }
+func (s ScanEstimates) toSqScanCost() float64 { return s.sq.ToCost() }
+
+func (s ScanEstimates) UseIxScan() bool { return s.toIxScanCost() < s.toSqScanCost() }
+
+func PushdownNewByCost[F any](
+	filter2estimates func(filter F) ScanEstimates,
+) PushDown[F] {
+	return func(filter F) (useRemoteFilter bool) {
+		var s ScanEstimates = filter2estimates(filter)
+		return s.UseIxScan()
+	}
+}
