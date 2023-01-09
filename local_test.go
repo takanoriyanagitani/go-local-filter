@@ -78,4 +78,38 @@ func TestLocal(t *testing.T) {
 			t.Run("2 rows", assertEq(len(filtered), 2))
 		})
 	})
+
+	t.Run("LocalFilter", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("And", func(t *testing.T) {
+			t.Parallel()
+
+			var lbi LocalFilter[int32, localFilterSample] = func(
+				value int32,
+				filter localFilterSample,
+			) (keep bool) {
+				var lbi int32 = filter.lbi
+				return lbi <= value
+			}
+
+			var ubi LocalFilter[int32, localFilterSample] = func(
+				value int32,
+				filter localFilterSample,
+			) (keep bool) {
+				var ube int32 = filter.ube
+				return value < ube
+			}
+
+			var bound LocalFilter[int32, localFilterSample] = lbi.And(ubi)
+
+			var keep bool = bound(0x42, localFilterSample{
+				lbi: 0x40,
+				ube: 0xff,
+			})
+
+			t.Run("keep", assertEq(keep, true))
+
+		})
+	})
 }
