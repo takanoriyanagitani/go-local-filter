@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-type Unpack[P, U any] func(packed P) (unpacked []U)
+type Unpack[P, U any] func(packed P) (unpacked []U, e error)
 
 func (u Unpack[P, U]) NewAll(
 	all func(context.Context, Bucket) (packed []P, e error),
@@ -14,7 +14,11 @@ func (u Unpack[P, U]) NewAll(
 			func(bkt Bucket) ([]P, error) { return all(ctx, bkt) },
 			func(packed []P) (unpacked []U, e error) {
 				for _, packedItem := range packed {
-					unpacked = append(unpacked, u(packedItem)...)
+					chunk, e := u(packedItem)
+					if nil != e {
+						return nil, e
+					}
+					unpacked = append(unpacked, chunk...)
 				}
 				return
 			},
@@ -31,7 +35,11 @@ func RemoteFilterNewUnpacked[P, U, F any](
 			func(bkt Bucket) (packed []P, e error) { return remote(ctx, bkt, filter) },
 			func(packed []P) (unpacked []U, e error) {
 				for _, packedItem := range packed {
-					unpacked = append(unpacked, unpack(packedItem)...)
+					chunk, e := unpack(packedItem)
+					if nil != e {
+						return nil, e
+					}
+					unpacked = append(unpacked, chunk...)
 				}
 				return
 			},
