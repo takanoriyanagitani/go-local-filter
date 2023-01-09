@@ -25,3 +25,24 @@ func (d Decode[E, D]) NewAll(
 		)(bkt)
 	}
 }
+
+func RemoteFilterNewDecoded[E, D, F any](
+	decode Decode[E, D],
+	remote func(ctx context.Context, b Bucket, filter F) (encoded []E, e error),
+) func(ctx context.Context, b Bucket, filter F) (decoded []D, e error) {
+	return func(ctx context.Context, b Bucket, filter F) (decoded []D, e error) {
+		return composeErr(
+			func(bkt Bucket) (encoded []E, e error) { return remote(ctx, bkt, filter) },
+			func(encoded []E) (decoded []D, e error) {
+				for _, encodedItem := range encoded {
+					decodedItem, e := decode(encodedItem)
+					if nil != e {
+						return nil, e
+					}
+					decoded = append(decoded, decodedItem)
+				}
+				return
+			},
+		)(b)
+	}
+}
