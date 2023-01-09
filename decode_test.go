@@ -157,4 +157,67 @@ func TestDecode(t *testing.T) {
 			})
 		})
 	})
+
+	t.Run("RemoteFilterNewDecoded", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("empty", func(t *testing.T) {
+			t.Parallel()
+
+			var decode Decode[uint16, [2]uint8] = func(encoded uint16) ([2]uint8, error) {
+				return [2]uint8{0, 0}, nil
+			}
+
+			const filter uint16 = 0x42
+
+			var getDecoded func(
+				ctx context.Context,
+				bucket Bucket,
+				filter uint16,
+			) (decoded [][2]uint8, e error) = RemoteFilterNewDecoded(
+				decode,
+				func(_ context.Context, _b Bucket, _filter uint16) (encoded []uint16, e error) {
+					return nil, nil
+				},
+			)
+
+			decoded, e := getDecoded(context.Background(), BucketNew(""), 0x00)
+			t.Run("no error", assertNil(e))
+			t.Run("no items", assertEq(len(decoded), 0))
+		})
+
+		t.Run("single item", func(t *testing.T) {
+			t.Parallel()
+
+			var decode Decode[uint16, [2]uint8] = func(encoded uint16) ([2]uint8, error) {
+				return [2]uint8{
+					uint8(encoded >> 8),
+					uint8(encoded & 0xff),
+				}, nil
+			}
+
+			const filter uint16 = 0x0042
+
+			var getDecoded func(
+				ctx context.Context,
+				bucket Bucket,
+				filter uint16,
+			) (decoded [][2]uint8, e error) = RemoteFilterNewDecoded(
+				decode,
+				func(_ context.Context, _b Bucket, _filter uint16) (encoded []uint16, e error) {
+					return []uint16{
+						0x0042,
+					}, nil
+				},
+			)
+
+			decoded, e := getDecoded(context.Background(), BucketNew(""), 0x0042)
+			t.Run("no error", assertNil(e))
+			t.Run("single item", assertEq(len(decoded), 1))
+
+			var item1 [2]uint8 = decoded[0]
+			t.Run("ix 0", assertEq(item1[0], 0x00))
+			t.Run("ix 1", assertEq(item1[1], 0x42))
+		})
+	})
 }
