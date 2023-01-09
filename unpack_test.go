@@ -48,7 +48,7 @@ func TestUnpack(t *testing.T) {
 				}
 				var unpack Unpack[testPackedRow, testUnpackedRow] = func(
 					packed testPackedRow,
-				) (unpacked []testUnpackedRow) {
+				) (unpacked []testUnpackedRow, e error) {
 					return
 				}
 				getUnpacked := unpack.NewAll(getPacked)
@@ -67,8 +67,8 @@ func TestUnpack(t *testing.T) {
 				}
 				var unpack Unpack[testPackedRow, testUnpackedRow] = func(
 					packed testPackedRow,
-				) (unpacked []testUnpackedRow) {
-					return packed.unpack()
+				) (unpacked []testUnpackedRow, e error) {
+					return packed.unpack(), nil
 				}
 				getUnpacked := unpack.NewAll(getPacked)
 				unpacked, e := getUnpacked(context.Background(), BucketNew(""))
@@ -87,8 +87,8 @@ func TestUnpack(t *testing.T) {
 				}
 				var unpack Unpack[testPackedRow, testUnpackedRow] = func(
 					packed testPackedRow,
-				) (unpacked []testUnpackedRow) {
-					return packed.unpack()
+				) (unpacked []testUnpackedRow, e error) {
+					return packed.unpack(), nil
 				}
 				getUnpacked := unpack.NewAll(getPacked)
 				unpacked, e := getUnpacked(context.Background(), BucketNew(""))
