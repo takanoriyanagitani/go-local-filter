@@ -97,4 +97,89 @@ func TestUnpack(t *testing.T) {
 			})
 		})
 	})
+
+	t.Run("RemoteFilterNewUnpacked", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("empty", func(t *testing.T) {
+			t.Parallel()
+
+			var unpack Unpack[uint64, uint8] = func(packed uint64) (unpacked []uint8, e error) {
+				var u [8]uint8 = [8]uint8{
+					uint8(packed >> 56),
+					uint8(packed >> 48),
+					uint8(packed >> 40),
+					uint8(packed >> 32),
+					uint8(packed >> 24),
+					uint8(packed >> 16),
+					uint8(packed >> 8),
+					uint8(packed >> 0),
+				}
+				return u[:], nil
+			}
+
+			remote := func(_ context.Context, _b Bucket, filter uint64) (packed []uint64, e error) {
+				return
+			}
+
+			var getUnpacked func(
+				ctx context.Context,
+				bucket Bucket,
+				filter uint64,
+			) (unpacked []uint8, e error) = RemoteFilterNewUnpacked(
+				unpack,
+				remote,
+			)
+
+			unpacked, e := getUnpacked(context.Background(), BucketNew(""), 0x42)
+			t.Run("no error", assertNil(e))
+			t.Run("no items", assertEq(len(unpacked), 0))
+		})
+
+		t.Run("single item", func(t *testing.T) {
+			t.Parallel()
+
+			var unpack Unpack[uint64, uint8] = func(packed uint64) (unpacked []uint8, e error) {
+				var u [8]uint8 = [8]uint8{
+					uint8(packed >> 56),
+					uint8(packed >> 48),
+					uint8(packed >> 40),
+					uint8(packed >> 32),
+					uint8(packed >> 24),
+					uint8(packed >> 16),
+					uint8(packed >> 8),
+					uint8(packed >> 0),
+				}
+				return u[:], nil
+			}
+
+			remote := func(_ context.Context, _b Bucket, filter uint64) (packed []uint64, e error) {
+				return []uint64{
+					0x0123456789abcdef,
+				}, nil
+			}
+
+			var getUnpacked func(
+				ctx context.Context,
+				bucket Bucket,
+				filter uint64,
+			) (unpacked []uint8, e error) = RemoteFilterNewUnpacked(
+				unpack,
+				remote,
+			)
+
+			unpacked, e := getUnpacked(context.Background(), BucketNew(""), 0x0123456789abcdef)
+			t.Run("no error", assertNil(e))
+			t.Run("8 items", assertEq(len(unpacked), 8))
+
+			t.Run("item 0", assertEq(unpacked[0], 0x01))
+			t.Run("item 1", assertEq(unpacked[1], 0x23))
+			t.Run("item 2", assertEq(unpacked[2], 0x45))
+			t.Run("item 3", assertEq(unpacked[3], 0x67))
+			t.Run("item 4", assertEq(unpacked[4], 0x89))
+			t.Run("item 5", assertEq(unpacked[5], 0xab))
+			t.Run("item 6", assertEq(unpacked[6], 0xcd))
+			t.Run("item 7", assertEq(unpacked[7], 0xef))
+		})
+	})
 }
