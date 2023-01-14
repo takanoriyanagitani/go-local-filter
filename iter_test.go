@@ -569,7 +569,7 @@ func TestIter(t *testing.T) {
 	t.Run("Iter2ConsumerNewUnpacked", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("fine filter", func(t *testing.T){
+		t.Run("fine filter", func(t *testing.T) {
 			t.Parallel()
 
 			var dummyIter uint8 = 0
@@ -585,9 +585,9 @@ func TestIter(t *testing.T) {
 				return nil
 			}
 			iterErr := func(_iter *uint8) error { return nil }
-			unpack := func(packed *testIterPacked)(testIterUnpacked, error){
+			unpack := func(packed *testIterPacked) (testIterUnpacked, error) {
 				return testIterUnpacked{
-					rowId: 0x634,
+					rowId:     0x634,
 					subBucket: uint16(packed.val[1]) | (uint16(packed.val[0]) << 8),
 					bloom: [2]uint64{
 						0x0599,
@@ -595,14 +595,14 @@ func TestIter(t *testing.T) {
 					},
 				}, nil
 			}
-			filterCoarse := func(packed *testIterPacked, f *testIterFilter)(keep bool){
+			filterCoarse := func(packed *testIterPacked, f *testIterFilter) (keep bool) {
 				return packed.key == f.key
 			}
-			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter)(keep bool){
+			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter) (keep bool) {
 				return unpacked.bloom[1] == f.bloom1
 			}
 			var wroteCnt uint8 = 0
-			consumer := func(unpacked *testIterUnpacked)(stop bool, e error){
+			consumer := func(unpacked *testIterUnpacked) (stop bool, e error) {
 				wroteCnt += 1
 				return false, nil
 			}
@@ -618,7 +618,7 @@ func TestIter(t *testing.T) {
 
 			var buf testIterPacked
 			var flt *testIterFilter = &testIterFilter{
-				key: 0x42,
+				key:    0x42,
 				bloom1: 0x3776,
 			}
 
@@ -627,7 +627,7 @@ func TestIter(t *testing.T) {
 			t.Run("no items", assertEq(wroteCnt, 0))
 		})
 
-		t.Run("coarse filter", func(t *testing.T){
+		t.Run("coarse filter", func(t *testing.T) {
 			t.Parallel()
 
 			var dummyIter uint8 = 0
@@ -643,9 +643,9 @@ func TestIter(t *testing.T) {
 				return nil
 			}
 			iterErr := func(_iter *uint8) error { return nil }
-			unpack := func(packed *testIterPacked)(testIterUnpacked, error){
+			unpack := func(packed *testIterPacked) (testIterUnpacked, error) {
 				return testIterUnpacked{
-					rowId: 0x634,
+					rowId:     0x634,
 					subBucket: uint16(packed.val[1]) | (uint16(packed.val[0]) << 8),
 					bloom: [2]uint64{
 						0x0599,
@@ -653,14 +653,14 @@ func TestIter(t *testing.T) {
 					},
 				}, nil
 			}
-			filterCoarse := func(packed *testIterPacked, f *testIterFilter)(keep bool){
+			filterCoarse := func(packed *testIterPacked, f *testIterFilter) (keep bool) {
 				return packed.key == f.key
 			}
-			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter)(keep bool){
+			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter) (keep bool) {
 				return unpacked.bloom[1] == f.bloom1
 			}
 			var wroteCnt uint8 = 0
-			consumer := func(unpacked *testIterUnpacked)(stop bool, e error){
+			consumer := func(unpacked *testIterUnpacked) (stop bool, e error) {
 				wroteCnt += 1
 				return false, nil
 			}
@@ -676,7 +676,7 @@ func TestIter(t *testing.T) {
 
 			var buf testIterPacked
 			var flt *testIterFilter = &testIterFilter{
-				key: 0x42,
+				key:    0x42,
 				bloom1: 0x3776,
 			}
 
@@ -685,7 +685,7 @@ func TestIter(t *testing.T) {
 			t.Run("no items", assertEq(wroteCnt, 0))
 		})
 
-		t.Run("stop", func(t *testing.T){
+		t.Run("stop", func(t *testing.T) {
 			t.Parallel()
 
 			var dummyIter uint8 = 0
@@ -701,9 +701,9 @@ func TestIter(t *testing.T) {
 				return nil
 			}
 			iterErr := func(_iter *uint8) error { return nil }
-			unpack := func(packed *testIterPacked)(testIterUnpacked, error){
+			unpack := func(packed *testIterPacked) (testIterUnpacked, error) {
 				return testIterUnpacked{
-					rowId: 0x634,
+					rowId:     0x634,
 					subBucket: uint16(packed.val[1]) | (uint16(packed.val[0]) << 8),
 					bloom: [2]uint64{
 						0x0599,
@@ -711,14 +711,14 @@ func TestIter(t *testing.T) {
 					},
 				}, nil
 			}
-			filterCoarse := func(packed *testIterPacked, f *testIterFilter)(keep bool){
+			filterCoarse := func(packed *testIterPacked, f *testIterFilter) (keep bool) {
 				return packed.key == f.key
 			}
-			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter)(keep bool){
+			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter) (keep bool) {
 				return unpacked.bloom[1] == f.bloom1
 			}
 			var wroteCnt uint8 = 0
-			consumer := func(unpacked *testIterUnpacked)(stop bool, e error){
+			consumer := func(unpacked *testIterUnpacked) (stop bool, e error) {
 				return true, nil
 			}
 
@@ -733,7 +733,7 @@ func TestIter(t *testing.T) {
 
 			var buf testIterPacked
 			var flt *testIterFilter = &testIterFilter{
-				key: 0x42,
+				key:    0x42,
 				bloom1: 0x3776,
 			}
 
@@ -742,7 +742,7 @@ func TestIter(t *testing.T) {
 			t.Run("no write", assertEq(wroteCnt, 0))
 		})
 
-		t.Run("single item", func(t *testing.T){
+		t.Run("single item", func(t *testing.T) {
 			t.Parallel()
 
 			var dummyIter uint8 = 0
@@ -758,9 +758,9 @@ func TestIter(t *testing.T) {
 				return nil
 			}
 			iterErr := func(_iter *uint8) error { return nil }
-			unpack := func(packed *testIterPacked)(testIterUnpacked, error){
+			unpack := func(packed *testIterPacked) (testIterUnpacked, error) {
 				return testIterUnpacked{
-					rowId: 0x634,
+					rowId:     0x634,
 					subBucket: uint16(packed.val[1]) | (uint16(packed.val[0]) << 8),
 					bloom: [2]uint64{
 						0x0599,
@@ -768,14 +768,14 @@ func TestIter(t *testing.T) {
 					},
 				}, nil
 			}
-			filterCoarse := func(packed *testIterPacked, f *testIterFilter)(keep bool){
+			filterCoarse := func(packed *testIterPacked, f *testIterFilter) (keep bool) {
 				return packed.key == f.key
 			}
-			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter)(keep bool){
+			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter) (keep bool) {
 				return unpacked.bloom[1] == f.bloom1
 			}
 			var wroteCnt uint8 = 0
-			consumer := func(unpacked *testIterUnpacked)(stop bool, e error){
+			consumer := func(unpacked *testIterUnpacked) (stop bool, e error) {
 				wroteCnt += 1
 				return false, nil
 			}
@@ -791,7 +791,7 @@ func TestIter(t *testing.T) {
 
 			var buf testIterPacked
 			var flt *testIterFilter = &testIterFilter{
-				key: 0x42,
+				key:    0x42,
 				bloom1: 0x3776,
 			}
 
