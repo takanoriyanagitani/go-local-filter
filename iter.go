@@ -93,3 +93,101 @@ func Iter2UnpackedWithFilterNew[I, P, U, F any](
 		return
 	}
 }
+
+// IterConsumer may consume a value.
+//
+// # Return value
+//   - stop: Must be true in order to stop the iteration.
+//   - e:    Must not be nil to propagate the error.
+type IterConsumer[T any] func(value *T) (stop bool, e error)
+
+// Iter2ConsumerNewFiltered creates a closure which consumes filtered values.
+//
+// # Arguments
+//   - iterNext: Checks if an iterator has a next item or not.
+//   - iterGet: Gets a next value.
+//   - iterErr: Gets an error from an iterator.
+//   - keep: Checks if a value must be consumed or not.
+//   - consumer: Processes a value.
+func Iter2ConsumerNewFiltered[I, T, F any](
+	iterNext func(iter I) bool,
+	iterGet func(iter I, value *T) error,
+	iterErr func(iter I) error,
+	keep func(filter *F, value *T) bool,
+	consumer IterConsumer[T],
+) func(ctx context.Context, iter I, buf *T, filter *F) error {
+	return func(ctx context.Context, iter I, buf *T, filter *F) (e error) {
+		for iterNext(iter) {
+			e = iterGet(iter, buf)
+			if nil != e {
+				return
+			}
+			var ignore bool = !keep(filter, buf)
+			if ignore {
+				continue
+			}
+			stop, err := consumer(buf)
+			if nil != err {
+				return err
+			}
+			if stop {
+				return nil
+			}
+		}
+		return iterErr(iter)
+	}
+}
+
+// Iter2ConsumerNewUnpacked creates a closure which consumes an unpacked items after filtering.
+//
+// # Arguments
+//   - iterNext: Checks if an iterator has a next item or not.
+//   - iterGet: Gets a packed item.
+//   - iterErr: Gets an error from an iterator.
+//   - unpack: Gets an unpacked item from a packed item.
+//   - filterCoarse: Checks if a packed item must be used or not.
+//   - filterFine: Checks if an unpacked item must be used or not.
+//   - consumer: Processes an unpacked item.
+func Iter2ConsumerNewUnpacked[I, P, F, U any](
+	iterNext func(iter I) bool,
+	iterGet func(iter I, packed *P) error,
+	iterErr func(iter I) error,
+	unpack func(packed *P) (unpacked U, e error),
+	filterCoarse func(packed *P, filter *F) (keep bool),
+	filterFine func(unpacked *U, filter *F) (keep bool),
+	consumer IterConsumer[U],
+) func(ctx context.Context, iter I, buf *P, filter *F) error {
+	return func(ctx context.Context, iter I, buf *P, filter *F) (e error) {
+		for iterNext(iter) {
+			e = iterGet(iter, buf)
+			if nil != e {
+				return
+			}
+
+			var keepCoarse bool = filterCoarse(buf, filter)
+			if !keepCoarse {
+				continue
+			}
+
+			unpacked, err := unpack(buf)
+			if nil != err {
+				return err
+			}
+
+			var keepFine bool = filterFine(&unpacked, filter)
+			if !keepFine {
+				continue
+			}
+
+			stop, err := consumer(&unpacked)
+			if nil != err {
+				return err
+			}
+
+			if stop {
+				return nil
+			}
+		}
+		return iterErr(iter)
+	}
+}

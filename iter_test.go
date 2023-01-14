@@ -413,4 +413,391 @@ func TestIter(t *testing.T) {
 			t.Run("bloom 1 match", assertEq(unpackedItem.bloom[1], 0x0123456789abcdef))
 		})
 	})
+
+	t.Run("Iter2ConsumerNewFiltered", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("no item", func(t *testing.T) {
+			t.Parallel()
+
+			var dummyIter uint8 = 0
+			iterNext := func(iter *uint8) bool {
+				var hasNext bool = 0 == (*iter)
+				*iter += 1
+				return hasNext
+			}
+			iterGet := func(_iter *uint8, p *testIterPacked) error {
+				p.key = 0x42
+				return nil
+			}
+			iterErr := func(_iter *uint8) error { return nil }
+			keep := func(f *testIterFilter, p *testIterPacked) bool { return f.key == p.key }
+
+			var keys []uint8
+
+			var consumer IterConsumer[testIterPacked] = func(
+				_packed *testIterPacked,
+			) (stop bool, e error) {
+				keys = append(keys, _packed.key)
+				return false, nil
+			}
+
+			var f func(
+				ctx context.Context,
+				iter *uint8,
+				buf *testIterPacked,
+				f *testIterFilter,
+			) error = Iter2ConsumerNewFiltered(
+				iterNext,
+				iterGet,
+				iterErr,
+				keep,
+				consumer,
+			)
+
+			var buf testIterPacked
+			var filt *testIterFilter = &testIterFilter{
+				key:    0x52,
+				bloom1: 0x634,
+			}
+
+			var e error = f(context.Background(), &dummyIter, &buf, filt)
+			t.Run("no error", assertNil(e))
+			t.Run("no item", assertEq(len(keys), 0))
+		})
+
+		t.Run("stop", func(t *testing.T) {
+			t.Parallel()
+
+			var dummyIter uint8 = 0
+			iterNext := func(iter *uint8) bool {
+				var hasNext bool = 0 == (*iter)
+				*iter += 1
+				return hasNext
+			}
+			iterGet := func(_iter *uint8, p *testIterPacked) error {
+				p.key = 0x42
+				return nil
+			}
+			iterErr := func(_iter *uint8) error { return nil }
+			keep := func(f *testIterFilter, p *testIterPacked) bool { return f.key == p.key }
+
+			var keys []uint8
+
+			var consumer IterConsumer[testIterPacked] = func(
+				_packed *testIterPacked,
+			) (stop bool, e error) {
+				return true, nil
+			}
+
+			var f func(
+				ctx context.Context,
+				iter *uint8,
+				buf *testIterPacked,
+				f *testIterFilter,
+			) error = Iter2ConsumerNewFiltered(
+				iterNext,
+				iterGet,
+				iterErr,
+				keep,
+				consumer,
+			)
+
+			var buf testIterPacked
+			var filt *testIterFilter = &testIterFilter{
+				key:    0x42,
+				bloom1: 0x634,
+			}
+
+			var e error = f(context.Background(), &dummyIter, &buf, filt)
+			t.Run("no error", assertNil(e))
+			t.Run("no item", assertEq(len(keys), 0))
+		})
+
+		t.Run("single item", func(t *testing.T) {
+			t.Parallel()
+
+			var dummyIter uint8 = 0
+			iterNext := func(iter *uint8) bool {
+				var hasNext bool = 0 == (*iter)
+				*iter += 1
+				return hasNext
+			}
+			iterGet := func(_iter *uint8, p *testIterPacked) error {
+				p.key = 0x42
+				return nil
+			}
+			iterErr := func(_iter *uint8) error { return nil }
+			keep := func(f *testIterFilter, p *testIterPacked) bool { return f.key == p.key }
+
+			var keys []uint8
+
+			var consumer IterConsumer[testIterPacked] = func(
+				_packed *testIterPacked,
+			) (stop bool, e error) {
+				keys = append(keys, _packed.key)
+				return false, nil
+			}
+
+			var f func(
+				ctx context.Context,
+				iter *uint8,
+				buf *testIterPacked,
+				f *testIterFilter,
+			) error = Iter2ConsumerNewFiltered(
+				iterNext,
+				iterGet,
+				iterErr,
+				keep,
+				consumer,
+			)
+
+			var buf testIterPacked
+			var filt *testIterFilter = &testIterFilter{
+				key:    0x42,
+				bloom1: 0x634,
+			}
+
+			var e error = f(context.Background(), &dummyIter, &buf, filt)
+			t.Run("no error", assertNil(e))
+			t.Run("single item", assertEq(len(keys), 1))
+			var key uint8 = keys[0]
+			t.Run("key check", assertEq(key, 0x42))
+		})
+	})
+
+	t.Run("Iter2ConsumerNewUnpacked", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("fine filter", func(t *testing.T){
+			t.Parallel()
+
+			var dummyIter uint8 = 0
+			iterNext := func(iter *uint8) bool {
+				var hasNext bool = 0 == (*iter)
+				*iter += 1
+				return hasNext
+			}
+			iterGet := func(_iter *uint8, packed *testIterPacked) error {
+				packed.key = 0x42
+				packed.val[0] = 0x37
+				packed.val[1] = 0x76
+				return nil
+			}
+			iterErr := func(_iter *uint8) error { return nil }
+			unpack := func(packed *testIterPacked)(testIterUnpacked, error){
+				return testIterUnpacked{
+					rowId: 0x634,
+					subBucket: uint16(packed.val[1]) | (uint16(packed.val[0]) << 8),
+					bloom: [2]uint64{
+						0x0599,
+						0x0333,
+					},
+				}, nil
+			}
+			filterCoarse := func(packed *testIterPacked, f *testIterFilter)(keep bool){
+				return packed.key == f.key
+			}
+			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter)(keep bool){
+				return unpacked.bloom[1] == f.bloom1
+			}
+			var wroteCnt uint8 = 0
+			consumer := func(unpacked *testIterUnpacked)(stop bool, e error){
+				wroteCnt += 1
+				return false, nil
+			}
+
+			var f func(
+				ctx context.Context,
+				iter *uint8,
+				buf *testIterPacked,
+				filter *testIterFilter,
+			) (e error) = Iter2ConsumerNewUnpacked(
+				iterNext, iterGet, iterErr, unpack, filterCoarse, filterFine, consumer,
+			)
+
+			var buf testIterPacked
+			var flt *testIterFilter = &testIterFilter{
+				key: 0x42,
+				bloom1: 0x3776,
+			}
+
+			e := f(context.Background(), &dummyIter, &buf, flt)
+			t.Run("no error", assertNil(e))
+			t.Run("no items", assertEq(wroteCnt, 0))
+		})
+
+		t.Run("coarse filter", func(t *testing.T){
+			t.Parallel()
+
+			var dummyIter uint8 = 0
+			iterNext := func(iter *uint8) bool {
+				var hasNext bool = 0 == (*iter)
+				*iter += 1
+				return hasNext
+			}
+			iterGet := func(_iter *uint8, packed *testIterPacked) error {
+				packed.key = 0x43
+				packed.val[0] = 0x37
+				packed.val[1] = 0x76
+				return nil
+			}
+			iterErr := func(_iter *uint8) error { return nil }
+			unpack := func(packed *testIterPacked)(testIterUnpacked, error){
+				return testIterUnpacked{
+					rowId: 0x634,
+					subBucket: uint16(packed.val[1]) | (uint16(packed.val[0]) << 8),
+					bloom: [2]uint64{
+						0x0599,
+						0x3776,
+					},
+				}, nil
+			}
+			filterCoarse := func(packed *testIterPacked, f *testIterFilter)(keep bool){
+				return packed.key == f.key
+			}
+			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter)(keep bool){
+				return unpacked.bloom[1] == f.bloom1
+			}
+			var wroteCnt uint8 = 0
+			consumer := func(unpacked *testIterUnpacked)(stop bool, e error){
+				wroteCnt += 1
+				return false, nil
+			}
+
+			var f func(
+				ctx context.Context,
+				iter *uint8,
+				buf *testIterPacked,
+				filter *testIterFilter,
+			) (e error) = Iter2ConsumerNewUnpacked(
+				iterNext, iterGet, iterErr, unpack, filterCoarse, filterFine, consumer,
+			)
+
+			var buf testIterPacked
+			var flt *testIterFilter = &testIterFilter{
+				key: 0x42,
+				bloom1: 0x3776,
+			}
+
+			e := f(context.Background(), &dummyIter, &buf, flt)
+			t.Run("no error", assertNil(e))
+			t.Run("no items", assertEq(wroteCnt, 0))
+		})
+
+		t.Run("stop", func(t *testing.T){
+			t.Parallel()
+
+			var dummyIter uint8 = 0
+			iterNext := func(iter *uint8) bool {
+				var hasNext bool = 0 == (*iter)
+				*iter += 1
+				return hasNext
+			}
+			iterGet := func(_iter *uint8, packed *testIterPacked) error {
+				packed.key = 0x42
+				packed.val[0] = 0x37
+				packed.val[1] = 0x76
+				return nil
+			}
+			iterErr := func(_iter *uint8) error { return nil }
+			unpack := func(packed *testIterPacked)(testIterUnpacked, error){
+				return testIterUnpacked{
+					rowId: 0x634,
+					subBucket: uint16(packed.val[1]) | (uint16(packed.val[0]) << 8),
+					bloom: [2]uint64{
+						0x0599,
+						0x3776,
+					},
+				}, nil
+			}
+			filterCoarse := func(packed *testIterPacked, f *testIterFilter)(keep bool){
+				return packed.key == f.key
+			}
+			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter)(keep bool){
+				return unpacked.bloom[1] == f.bloom1
+			}
+			var wroteCnt uint8 = 0
+			consumer := func(unpacked *testIterUnpacked)(stop bool, e error){
+				return true, nil
+			}
+
+			var f func(
+				ctx context.Context,
+				iter *uint8,
+				buf *testIterPacked,
+				filter *testIterFilter,
+			) (e error) = Iter2ConsumerNewUnpacked(
+				iterNext, iterGet, iterErr, unpack, filterCoarse, filterFine, consumer,
+			)
+
+			var buf testIterPacked
+			var flt *testIterFilter = &testIterFilter{
+				key: 0x42,
+				bloom1: 0x3776,
+			}
+
+			e := f(context.Background(), &dummyIter, &buf, flt)
+			t.Run("no error", assertNil(e))
+			t.Run("no write", assertEq(wroteCnt, 0))
+		})
+
+		t.Run("single item", func(t *testing.T){
+			t.Parallel()
+
+			var dummyIter uint8 = 0
+			iterNext := func(iter *uint8) bool {
+				var hasNext bool = 0 == (*iter)
+				*iter += 1
+				return hasNext
+			}
+			iterGet := func(_iter *uint8, packed *testIterPacked) error {
+				packed.key = 0x42
+				packed.val[0] = 0x37
+				packed.val[1] = 0x76
+				return nil
+			}
+			iterErr := func(_iter *uint8) error { return nil }
+			unpack := func(packed *testIterPacked)(testIterUnpacked, error){
+				return testIterUnpacked{
+					rowId: 0x634,
+					subBucket: uint16(packed.val[1]) | (uint16(packed.val[0]) << 8),
+					bloom: [2]uint64{
+						0x0599,
+						0x3776,
+					},
+				}, nil
+			}
+			filterCoarse := func(packed *testIterPacked, f *testIterFilter)(keep bool){
+				return packed.key == f.key
+			}
+			filterFine := func(unpacked *testIterUnpacked, f *testIterFilter)(keep bool){
+				return unpacked.bloom[1] == f.bloom1
+			}
+			var wroteCnt uint8 = 0
+			consumer := func(unpacked *testIterUnpacked)(stop bool, e error){
+				wroteCnt += 1
+				return false, nil
+			}
+
+			var f func(
+				ctx context.Context,
+				iter *uint8,
+				buf *testIterPacked,
+				filter *testIterFilter,
+			) (e error) = Iter2ConsumerNewUnpacked(
+				iterNext, iterGet, iterErr, unpack, filterCoarse, filterFine, consumer,
+			)
+
+			var buf testIterPacked
+			var flt *testIterFilter = &testIterFilter{
+				key: 0x42,
+				bloom1: 0x3776,
+			}
+
+			e := f(context.Background(), &dummyIter, &buf, flt)
+			t.Run("no error", assertNil(e))
+			t.Run("single write", assertEq(wroteCnt, 1))
+		})
+	})
 }
