@@ -38,6 +38,10 @@ psql \
             JSON_BUILD_OBJECT('second', 43, 'seqno', 4, 'bloom', 634),
             JSON_BUILD_OBJECT('second', 59, 'seqno', 5, 'bloom', 333)
         )::TEXT::BYTEA),
+        ('23:58'::BYTEA, JSON_BUILD_ARRAY(
+            JSON_BUILD_OBJECT('second',  0, 'seqno',  6, 'bloom', 299792458),
+            JSON_BUILD_OBJECT('second', 59, 'seqno', 10, 'bloom', 333)
+        )::TEXT::BYTEA),
         ('23:59'::BYTEA, JSON_BUILD_ARRAY(
             JSON_BUILD_OBJECT('second',  0, 'seqno',  6, 'bloom', 299792458),
             JSON_BUILD_OBJECT('second', 42, 'seqno',  7, 'bloom', 3776),
