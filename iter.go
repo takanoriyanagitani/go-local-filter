@@ -101,6 +101,29 @@ func Iter2UnpackedWithFilterNew[I, P, U, F any](
 //   - e:    Must not be nil to propagate the error.
 type IterConsumer[T any] func(value *T) (stop bool, e error)
 
+// IterConsumerNewPacked creates a new packed item consumer from an unpacked consumer.
+func IterConsumerNewPacked[P, U any](
+	unpack func(packed *P) (unpacked []U, e error),
+	consumer IterConsumer[U],
+) IterConsumer[P] {
+	return func(packed *P) (stop bool, e error) {
+		unpacked, e := unpack(packed)
+		if nil != e {
+			return
+		}
+        for _, unpackedItem := range unpacked {
+            stop, err := consumer(&unpackedItem)
+            if nil != err {
+                return true, err
+            }
+            if stop {
+                return true, nil
+            }
+        }
+		return
+	}
+}
+
 // Iter2ConsumerNewFiltered creates a closure which consumes filtered values.
 //
 // # Arguments
