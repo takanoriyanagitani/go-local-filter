@@ -101,6 +101,19 @@ func Iter2UnpackedWithFilterNew[I, P, U, F any](
 //   - e:    Must not be nil to propagate the error.
 type IterConsumer[T any] func(value *T) (stop bool, e error)
 
+func (c IterConsumer[T]) ConsumeMany(values []T) (stop bool, e error) {
+	for _, val := range values {
+		stop, e := c(&val)
+		if nil != e {
+			return false, e
+		}
+		if stop {
+			return true, nil
+		}
+	}
+	return
+}
+
 // IterConsumerNewPacked creates a new packed item consumer from an unpacked consumer.
 func IterConsumerNewPacked[P, U any](
 	unpack func(packed *P) (unpacked []U, e error),
@@ -111,15 +124,15 @@ func IterConsumerNewPacked[P, U any](
 		if nil != e {
 			return
 		}
-        for _, unpackedItem := range unpacked {
-            stop, err := consumer(&unpackedItem)
-            if nil != err {
-                return true, err
-            }
-            if stop {
-                return true, nil
-            }
-        }
+		for _, unpackedItem := range unpacked {
+			stop, err := consumer(&unpackedItem)
+			if nil != err {
+				return true, err
+			}
+			if stop {
+				return true, nil
+			}
+		}
 		return
 	}
 }
