@@ -26,6 +26,11 @@ func (d Decode[E, D]) NewAll(
 	}
 }
 
+// RemoteFilterNewDecoded gets decoded items from encoded items.
+//
+// # Arguments
+//   - decode: Gets a decoded item from an encoded item.
+//   - remote: Gets encoded items.
 func RemoteFilterNewDecoded[E, D, F any](
 	decode Decode[E, D],
 	remote func(ctx context.Context, b Bucket, filter F) (encoded []E, e error),
