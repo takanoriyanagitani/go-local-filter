@@ -4,8 +4,13 @@ import (
 	"context"
 )
 
+// Decode must decode an encoded item.
 type Decode[E, D any] func(encoded E) (decoded D, e error)
 
+// NewAll creates a closure which gets decoded items.
+//
+// # Arguments
+//   - all: Gets encoded items.
 func (d Decode[E, D]) NewAll(
 	all func(context.Context, Bucket) (encoded []E, e error),
 ) func(context.Context, Bucket) (decoded []D, e error) {
