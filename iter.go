@@ -103,7 +103,8 @@ type IterConsumer[T any] func(value *T) (stop bool, e error)
 
 func (c IterConsumer[T]) ConsumeMany(values []T) (stop bool, e error) {
 	for _, val := range values {
-		stop, e := c(&val)
+		var item T = val
+		stop, e := c(&item)
 		if nil != e {
 			return false, e
 		}
@@ -125,7 +126,8 @@ func IterConsumerNewPacked[P, U any](
 			return
 		}
 		for _, unpackedItem := range unpacked {
-			stop, err := consumer(&unpackedItem)
+			var item U = unpackedItem
+			stop, err := consumer(&item)
 			if nil != err {
 				return true, err
 			}
