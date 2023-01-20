@@ -115,6 +115,13 @@ func (c IterConsumer[T]) ConsumeMany(values []T) (stop bool, e error) {
 	return
 }
 
+// IterConsumerFilterMany processes filtered items.
+//
+// # Arguments
+//   - consumer: Processes a filtered item.
+//   - items: Items to be filtered.
+//   - filterFunc: Checks if an item must be used or not.
+//   - filter: A filter used by filterFunc.
 func IterConsumerFilterMany[T, F any](
 	consumer IterConsumer[T],
 	items []T,
