@@ -42,7 +42,12 @@ func Iter2ConsumerNewUnnested[I, P, F, U any](
 				return e
 			}
 
-			stop, e := consumeUnpacked.ConsumeMany(unpackedItems)
+			stop, e := IterConsumerFilterMany(
+				consumeUnpacked,
+				unpackedItems,
+				filterUnpacked,
+				filter,
+			)
 			if nil != e {
 				return e
 			}
