@@ -115,6 +115,29 @@ func (c IterConsumer[T]) ConsumeMany(values []T) (stop bool, e error) {
 	return
 }
 
+func IterConsumerFilterMany[T, F any](
+	consumer IterConsumer[T],
+	items []T,
+	filterFunc func(item *T, filter *F) (keep bool),
+	filter *F,
+) (stop bool, e error) {
+	for _, item := range items {
+		var i T = item
+		var keep bool = filterFunc(&i, filter)
+		if !keep {
+			continue
+		}
+		stop, e := consumer(&i)
+		if nil != e {
+			return stop, e
+		}
+		if stop {
+			return stop, nil
+		}
+	}
+	return
+}
+
 // IterConsumerNewPacked creates a new packed item consumer from an unpacked consumer.
 func IterConsumerNewPacked[P, U any](
 	unpack func(packed *P) (unpacked []U, e error),

@@ -800,4 +800,131 @@ func TestIter(t *testing.T) {
 			t.Run("single write", assertEq(wroteCnt, 1))
 		})
 	})
+
+	t.Run("IterConsumerFilterMany", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("empty", func(t *testing.T) {
+			t.Parallel()
+
+			var buf []int32
+			var consumer IterConsumer[int32] = func(val *int32) (stop bool, e error) {
+				buf = append(buf, *val)
+				return false, nil
+			}
+			var all []int32 = []int32{}
+			var f testIterFilter = testIterFilter{
+				key:    0x42,
+				bloom1: 0x0123456789abcdef,
+			}
+			filter := func(item *int32, f *testIterFilter) (keep bool) {
+				return true
+			}
+			stop, e := IterConsumerFilterMany(
+				consumer,
+				all,
+				filter,
+				&f,
+			)
+			t.Run("no error", assertNil(e))
+			t.Run("non stop", assertEq(stop, false))
+			t.Run("empty", assertEq(len(buf), 0))
+		})
+
+		t.Run("single item", func(t *testing.T) {
+			t.Parallel()
+
+			var buf []int32
+			var consumer IterConsumer[int32] = func(val *int32) (stop bool, e error) {
+				buf = append(buf, *val)
+				return false, nil
+			}
+			var all []int32 = []int32{
+				0x01234567,
+				0x42234567,
+				0x21234567,
+			}
+			var f testIterFilter = testIterFilter{
+				key:    0x42,
+				bloom1: 0x0123456789abcdef,
+			}
+			filter := func(item *int32, f *testIterFilter) (keep bool) {
+				var head uint8 = uint8(*item >> 24)
+				return head == f.key
+			}
+			stop, e := IterConsumerFilterMany(
+				consumer,
+				all,
+				filter,
+				&f,
+			)
+			t.Run("no error", assertNil(e))
+			t.Run("non stop", assertEq(stop, false))
+			t.Run("single item", assertEq(len(buf), 1))
+		})
+
+		t.Run("3 items", func(t *testing.T) {
+			t.Parallel()
+
+			var buf []int32
+			var consumer IterConsumer[int32] = func(val *int32) (stop bool, e error) {
+				buf = append(buf, *val)
+				return false, nil
+			}
+			var all []int32 = []int32{
+				0x42000000,
+				0x42111111,
+				0x42222222,
+			}
+			var f testIterFilter = testIterFilter{
+				key:    0x42,
+				bloom1: 0x0123456789abcdef,
+			}
+			filter := func(item *int32, f *testIterFilter) (keep bool) {
+				var head uint8 = uint8(*item >> 24)
+				return head == f.key
+			}
+			stop, e := IterConsumerFilterMany(
+				consumer,
+				all,
+				filter,
+				&f,
+			)
+			t.Run("no error", assertNil(e))
+			t.Run("non stop", assertEq(stop, false))
+			t.Run("iii items", assertEq(len(buf), 3))
+		})
+
+		t.Run("stopper", func(t *testing.T) {
+			t.Parallel()
+
+			var buf []int32
+			var consumer IterConsumer[int32] = func(val *int32) (stop bool, e error) {
+				buf = append(buf, *val)
+				return 1 < len(buf), nil
+			}
+			var all []int32 = []int32{
+				0x42000000,
+				0x42111111,
+				0x42222222,
+			}
+			var f testIterFilter = testIterFilter{
+				key:    0x42,
+				bloom1: 0x0123456789abcdef,
+			}
+			filter := func(item *int32, f *testIterFilter) (keep bool) {
+				var head uint8 = uint8(*item >> 24)
+				return head == f.key
+			}
+			stop, e := IterConsumerFilterMany(
+				consumer,
+				all,
+				filter,
+				&f,
+			)
+			t.Run("no error", assertNil(e))
+			t.Run("stop", assertEq(stop, true))
+			t.Run("two items", assertEq(len(buf), 2))
+		})
+	})
 }
