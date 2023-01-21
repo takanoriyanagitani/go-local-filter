@@ -69,3 +69,124 @@ func GetByKeysNewUnnested[G, K, P, F, U any](
 		return nil
 	}
 }
+
+type GetKeys[D, B, F, K any] func(
+	ctx context.Context,
+	con D,
+	bucket *B,
+	filter *F,
+) (keys []K, e error)
+
+type GetByKey[D, B, F, K, V any] func(
+	ctx context.Context,
+	con D,
+	bucket *B,
+	key K,
+	val *V,
+	filter *F,
+) (got bool, e error)
+
+func GetByKeyDecodedNew[G, B, F, K, E, D any](
+	getEncodedByKey GetByKey[G, B, F, K, E],
+	decoder func(encoded *E) (decoded D, e error),
+	buf *E,
+	filterDecoded func(decoded *D, filter *F) (keep bool),
+) GetByKey[G, B, F, K, D] {
+	return func(
+		ctx context.Context,
+		con G,
+		bucket *B,
+		key K,
+		val *D,
+		filter *F,
+	) (got bool, e error) {
+		got, e = getEncodedByKey(ctx, con, bucket, key, buf, filter)
+		if nil != e {
+			return got, e
+		}
+		decoded, e := decoder(buf)
+		if nil != e {
+			return false, e
+		}
+		var keep bool = filterDecoded(&decoded, filter)
+		if !keep {
+			return false, nil
+		}
+		*val = decoded
+		return true, nil
+	}
+}
+
+type Got2Consumer[D, K, F, B, V any] func(
+	ctx context.Context,
+	con D,
+	bucket *B,
+	filter *F,
+	buf *V,
+	consumer func(val *V, filter *F) (stop bool, e error),
+) error
+
+func GetByKeysNew[G, K, F, B, V any](
+	getKeys GetKeys[G, B, F, K],
+	getByKey GetByKey[G, B, F, K, V],
+) Got2Consumer[G, K, F, B, V] {
+	return func(
+		ctx context.Context,
+		con G,
+		bucket *B,
+		filter *F,
+		buf *V,
+		consumer func(val *V, filter *F) (stop bool, e error),
+	) error {
+		keys, e := getKeys(ctx, con, bucket, filter)
+		if nil != e {
+			return e
+		}
+		for _, key := range keys {
+			got, e := getByKey(ctx, con, bucket, key, buf, filter)
+			if nil != e {
+				return e
+			}
+			if !got {
+				continue
+			}
+			stop, e := consumer(buf, filter)
+			if nil != e {
+				return e
+			}
+			if stop {
+				return nil
+			}
+		}
+		return nil
+	}
+}
+
+func GetWithPlanNew[G, K, F, B, V any](
+	getByKeys Got2Consumer[G, K, F, B, V],
+	getDirect Got2Consumer[G, K, F, B, V],
+	plan func(filter *F) (directScan bool),
+) func(
+	ctx context.Context,
+	con G,
+	bucket *B,
+	filter *F,
+	buf *V,
+	consumer func(val *V, filter *F) (stop bool, e error),
+) error {
+	return func(
+		ctx context.Context,
+		con G,
+		bucket *B,
+		filter *F,
+		buf *V,
+		consumer func(val *V, filter *F) (stop bool, e error),
+	) error {
+		var useDirectScan bool = plan(filter)
+		return doEither(
+			useDirectScan,
+			func() error { return getDirect(ctx, con, bucket, filter, buf, consumer) },
+			func() error { return getByKeys(ctx, con, bucket, filter, buf, consumer) },
+		)
+	}
+}

@@ -611,4 +611,521 @@ func TestIndirect(t *testing.T) {
 
 		})
 	})
+
+	t.Run("GetByKeyDecodedNew", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("empty", func(t *testing.T) {
+			t.Parallel()
+
+			var getEncoded GetByKey[
+				uint8,
+				string,
+				testIndirectFilter,
+				testIndirectKey,
+				testIndirectEncoded,
+			] = func(
+				ctx context.Context,
+				dummy uint8,
+				bucket *string,
+				k testIndirectKey,
+				encoded *testIndirectEncoded,
+				f *testIndirectFilter,
+			) (got bool, e error) {
+				return
+			}
+
+			decoder := func(e *testIndirectEncoded) (d testIndirectDecoded, err error) {
+				return e.decode()
+			}
+
+			var buf testIndirectEncoded
+			filter := func(d *testIndirectDecoded, f *testIndirectFilter) (keep bool) { return }
+
+			var gbk GetByKey[
+				uint8,
+				string,
+				testIndirectFilter,
+				testIndirectKey,
+				testIndirectDecoded,
+			] = GetByKeyDecodedNew(
+				getEncoded,
+				decoder,
+				&buf,
+				filter,
+			)
+
+			f := testIndirectFilter{}
+
+			var bucket string = "items_2023_01_22_cafef00ddeadbeafface864299792458"
+			var bufDecoded testIndirectDecoded
+			got, e := gbk(
+				context.Background(),
+				0,
+				&bucket,
+				testIndirectKey{serial: 0x01234567},
+				&bufDecoded,
+				&f,
+			)
+			t.Run("no error", assertNil(e))
+			t.Run("no items", assertEq(got, false))
+		})
+
+		t.Run("single item", func(t *testing.T) {
+			t.Parallel()
+
+			var getEncoded GetByKey[
+				uint8,
+				string,
+				testIndirectFilter,
+				testIndirectKey,
+				testIndirectEncoded,
+			] = func(
+				ctx context.Context,
+				dummy uint8,
+				bucket *string,
+				k testIndirectKey,
+				encoded *testIndirectEncoded,
+				f *testIndirectFilter,
+			) (got bool, e error) {
+				copy(encoded.key[:], []byte("0123456789"))
+				copy(encoded.val[:], []byte("0123456789abcdef"))
+				return true, nil
+			}
+
+			decoder := func(e *testIndirectEncoded) (d testIndirectDecoded, err error) {
+				return e.decode()
+			}
+
+			var buf testIndirectEncoded
+			filter := func(d *testIndirectDecoded, f *testIndirectFilter) (keep bool) {
+				return true
+			}
+
+			var gbk GetByKey[
+				uint8,
+				string,
+				testIndirectFilter,
+				testIndirectKey,
+				testIndirectDecoded,
+			] = GetByKeyDecodedNew(
+				getEncoded,
+				decoder,
+				&buf,
+				filter,
+			)
+
+			f := testIndirectFilter{}
+
+			var bucket string = "items_2023_01_22_cafef00ddeadbeafface864299792458"
+			var bufDecoded testIndirectDecoded
+			got, e := gbk(
+				context.Background(),
+				0,
+				&bucket,
+				testIndirectKey{serial: 0x01234567},
+				&bufDecoded,
+				&f,
+			)
+			t.Run("no error", assertNil(e))
+			t.Run("no items", assertEq(got, true))
+		})
+	})
+
+	t.Run("GetByKeysNew", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("empty", func(t *testing.T) {
+			t.Parallel()
+
+			var getKeys GetKeys[uint8, string, testIndirectFilter, testIndirectKey] = func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				f *testIndirectFilter,
+			) (keys []testIndirectKey, e error) {
+				return
+			}
+
+			var getByKey GetByKey[
+				uint8,
+				string,
+				testIndirectFilter,
+				testIndirectKey,
+				testIndirectEncoded,
+			] = func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				key testIndirectKey,
+				val *testIndirectEncoded,
+				filter *testIndirectFilter,
+			) (got bool, e error) {
+				return
+			}
+
+			var getByKeys Got2Consumer[
+				uint8,
+				testIndirectKey,
+				testIndirectFilter,
+				string,
+				testIndirectEncoded,
+			] = GetByKeysNew(
+				getKeys,
+				getByKey,
+			)
+
+			var bucket string = "items_2023_01_22_cafef00ddeadbeafface864299792458"
+			f := testIndirectFilter{}
+			var buf testIndirectEncoded
+			var items []testIndirectEncoded
+			consumer := func(val *testIndirectEncoded, f *testIndirectFilter) (stop bool, e error) {
+				items = append(items, *val)
+				return
+			}
+			e := getByKeys(
+				context.Background(),
+				0,
+				&bucket,
+				&f,
+				&buf,
+				consumer,
+			)
+
+			t.Run("no error", assertNil(e))
+			t.Run("no items", assertEq(len(items), 0))
+		})
+
+		t.Run("single item", func(t *testing.T) {
+			t.Parallel()
+
+			var getKeys GetKeys[uint8, string, testIndirectFilter, testIndirectKey] = func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				f *testIndirectFilter,
+			) (keys []testIndirectKey, e error) {
+				keys = append(keys, testIndirectKey{serial: 0x01234567})
+				return
+			}
+
+			var getByKey GetByKey[
+				uint8,
+				string,
+				testIndirectFilter,
+				testIndirectKey,
+				testIndirectEncoded,
+			] = func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				key testIndirectKey,
+				val *testIndirectEncoded,
+				filter *testIndirectFilter,
+			) (got bool, e error) {
+				return true, nil
+			}
+
+			var getByKeys Got2Consumer[
+				uint8,
+				testIndirectKey,
+				testIndirectFilter,
+				string,
+				testIndirectEncoded,
+			] = GetByKeysNew(
+				getKeys,
+				getByKey,
+			)
+
+			var bucket string = "items_2023_01_22_cafef00ddeadbeafface864299792458"
+			f := testIndirectFilter{}
+			var buf testIndirectEncoded
+			var items []testIndirectEncoded
+			consumer := func(val *testIndirectEncoded, f *testIndirectFilter) (stop bool, e error) {
+				items = append(items, *val)
+				return
+			}
+			e := getByKeys(
+				context.Background(),
+				0,
+				&bucket,
+				&f,
+				&buf,
+				consumer,
+			)
+
+			t.Run("no error", assertNil(e))
+			t.Run("single item", assertEq(len(items), 1))
+		})
+
+		t.Run("stale key", func(t *testing.T) {
+			t.Parallel()
+
+			var getKeys GetKeys[uint8, string, testIndirectFilter, testIndirectKey] = func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				f *testIndirectFilter,
+			) (keys []testIndirectKey, e error) {
+				keys = append(keys, testIndirectKey{serial: 0x01234567})
+				return
+			}
+
+			var getByKey GetByKey[
+				uint8,
+				string,
+				testIndirectFilter,
+				testIndirectKey,
+				testIndirectEncoded,
+			] = func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				key testIndirectKey,
+				val *testIndirectEncoded,
+				filter *testIndirectFilter,
+			) (got bool, e error) {
+				return false, nil
+			}
+
+			var getByKeys Got2Consumer[
+				uint8,
+				testIndirectKey,
+				testIndirectFilter,
+				string,
+				testIndirectEncoded,
+			] = GetByKeysNew(
+				getKeys,
+				getByKey,
+			)
+
+			var bucket string = "items_2023_01_22_cafef00ddeadbeafface864299792458"
+			f := testIndirectFilter{}
+			var buf testIndirectEncoded
+			var items []testIndirectEncoded
+			consumer := func(val *testIndirectEncoded, f *testIndirectFilter) (stop bool, e error) {
+				items = append(items, *val)
+				return
+			}
+			e := getByKeys(
+				context.Background(),
+				0,
+				&bucket,
+				&f,
+				&buf,
+				consumer,
+			)
+
+			t.Run("no error", assertNil(e))
+			t.Run("no item", assertEq(len(items), 0))
+		})
+
+		t.Run("too many items", func(t *testing.T) {
+			t.Parallel()
+
+			var getKeys GetKeys[uint8, string, testIndirectFilter, testIndirectKey] = func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				f *testIndirectFilter,
+			) (keys []testIndirectKey, e error) {
+				keys = append(keys, testIndirectKey{serial: 0x01234567})
+				keys = append(keys, testIndirectKey{serial: 0x01234568})
+				keys = append(keys, testIndirectKey{serial: 0x01234569})
+				return
+			}
+
+			var getByKey GetByKey[
+				uint8,
+				string,
+				testIndirectFilter,
+				testIndirectKey,
+				testIndirectEncoded,
+			] = func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				key testIndirectKey,
+				val *testIndirectEncoded,
+				filter *testIndirectFilter,
+			) (got bool, e error) {
+				return true, nil
+			}
+
+			var getByKeys Got2Consumer[
+				uint8,
+				testIndirectKey,
+				testIndirectFilter,
+				string,
+				testIndirectEncoded,
+			] = GetByKeysNew(
+				getKeys,
+				getByKey,
+			)
+
+			var bucket string = "items_2023_01_22_cafef00ddeadbeafface864299792458"
+			f := testIndirectFilter{}
+			var buf testIndirectEncoded
+			var items []testIndirectEncoded
+			consumer := func(val *testIndirectEncoded, f *testIndirectFilter) (stop bool, e error) {
+				items = append(items, *val)
+				return 1 < len(items), nil
+			}
+			e := getByKeys(
+				context.Background(),
+				0,
+				&bucket,
+				&f,
+				&buf,
+				consumer,
+			)
+
+			t.Run("no error", assertNil(e))
+			t.Run("2 items", assertEq(len(items), 2))
+		})
+	})
+
+	t.Run("GetWithPlanNew", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("indirect", func(t *testing.T) {
+			t.Parallel()
+
+			var getKeys GetKeys[uint8, string, testIndirectFilter, testIndirectKey] = func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				f *testIndirectFilter,
+			) (keys []testIndirectKey, e error) {
+				keys = append(keys, testIndirectKey{serial: 0x01234567})
+				return
+			}
+
+			var getByKey GetByKey[
+				uint8,
+				string,
+				testIndirectFilter,
+				testIndirectKey,
+				testIndirectEncoded,
+			] = func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				key testIndirectKey,
+				val *testIndirectEncoded,
+				filter *testIndirectFilter,
+			) (got bool, e error) {
+				return true, nil
+			}
+
+			var getByKeys Got2Consumer[
+				uint8,
+				testIndirectKey,
+				testIndirectFilter,
+				string,
+				testIndirectEncoded,
+			] = GetByKeysNew(
+				getKeys,
+				getByKey,
+			)
+
+			plan := func(_ *testIndirectFilter) (directScan bool) { return false }
+
+			var getWithPlan func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				f *testIndirectFilter,
+				buf *testIndirectEncoded,
+				consumer func(val *testIndirectEncoded, f *testIndirectFilter) (stop bool, e error),
+			) error = GetWithPlanNew(
+				getByKeys,
+				nil,
+				plan,
+			)
+
+			var bucket string = "items_2023_01_22_cafef00ddeadbeafface864299792458"
+			f := testIndirectFilter{}
+			var buf testIndirectEncoded
+			var items []testIndirectEncoded
+			consumer := func(
+				val *testIndirectEncoded,
+				f *testIndirectFilter,
+			) (stop bool, e error) {
+				items = append(items, *val)
+				return
+			}
+			e := getWithPlan(
+				context.Background(),
+				0,
+				&bucket,
+				&f,
+				&buf,
+				consumer,
+			)
+
+			t.Run("no error", assertNil(e))
+			t.Run("single item", assertEq(len(items), 1))
+		})
+
+		t.Run("direct", func(t *testing.T) {
+			t.Parallel()
+
+			var getDirect Got2Consumer[
+				uint8,
+				testIndirectKey,
+				testIndirectFilter,
+				string,
+				testIndirectEncoded,
+			] = func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				f *testIndirectFilter,
+				buf *testIndirectEncoded,
+				consumer func(val *testIndirectEncoded, f *testIndirectFilter) (stop bool, e error),
+			) error {
+				_, _ = consumer(buf, f)
+				return nil
+			}
+
+			plan := func(_ *testIndirectFilter) (directScan bool) { return true }
+
+			var getWithPlan func(
+				ctx context.Context,
+				_dummy uint8,
+				bucket *string,
+				f *testIndirectFilter,
+				buf *testIndirectEncoded,
+				consumer func(v *testIndirectEncoded, f *testIndirectFilter) (stop bool, e error),
+			) error = GetWithPlanNew(
+				nil,
+				getDirect,
+				plan,
+			)
+
+			var bucket string = "items_2023_01_22_cafef00ddeadbeafface864299792458"
+			f := testIndirectFilter{}
+			var buf testIndirectEncoded
+			var items []testIndirectEncoded
+			consumer := func(
+				val *testIndirectEncoded,
+				f *testIndirectFilter,
+			) (stop bool, e error) {
+				items = append(items, *val)
+				return
+			}
+			e := getWithPlan(
+				context.Background(),
+				0,
+				&bucket,
+				&f,
+				&buf,
+				consumer,
+			)
+
+			t.Run("no error", assertNil(e))
+			t.Run("single item", assertEq(len(items), 1))
+		})
+	})
 }
