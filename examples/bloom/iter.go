@@ -223,8 +223,8 @@ func iterSample() {
 			val: nil,
 		},
 		&sampleIterFilter{
-			coarseTime: [5]uint8{ '2', '3', ':', '5', '7' },
-			bloom: 0x3776,
+			coarseTime: [5]uint8{'2', '3', ':', '5', '7'},
+			bloom:      0x3776,
 		},
 	)
 

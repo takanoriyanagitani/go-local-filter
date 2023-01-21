@@ -4,4 +4,5 @@ func main() {
 	localSample()
 	remoteSample()
 	iterSample()
+	indirectSample()
 }

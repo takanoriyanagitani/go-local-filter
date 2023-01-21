@@ -57,4 +57,40 @@ psql \
   " \
   || exec printf 'Unable to populate a test table.\n'
 
+psql \
+  --command="
+    CREATE TABLE IF NOT EXISTS kvs_2023_01_08_cafef00ddeadbeafface864299792458(
+        key BYTEA NOT NULL,
+        val BYTEA NOT NULL,
+        rowid SERIAL NOT NULL,
+        CONSTRAINT kvs_2023_01_08_cafef00ddeadbeafface864299792458_pkc
+        PRIMARY KEY(key)
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS kvs_2023_01_08_cafef00ddeadbeafface864299792458_ux
+    ON kvs_2023_01_08_cafef00ddeadbeafface864299792458(rowid)
+    ;
+  " \
+  || exec printf 'Unable to create a test table.\n'
+
+echo 'creating 131,072 rows...'
+psql \
+  --command="
+    INSERT INTO kvs_2023_01_08_cafef00ddeadbeafface864299792458 AS tgt (key,val)
+    SELECT
+        key::TEXT::BYTEA,
+        JSON_BUILD_ARRAY(
+            JSON_BUILD_OBJECT('second', 0, 'seqno', 42, 'bloom', 634),
+            JSON_BUILD_OBJECT('second', 2, 'seqno', 43, 'bloom', 333),
+            JSON_BUILD_OBJECT('second', 4, 'seqno', 44, 'bloom', 3776),
+            JSON_BUILD_OBJECT('second', 6, 'seqno', 47, 'bloom', 599)
+        )::TEXT::BYTEA
+    FROM (SELECT GENERATE_SERIES(1,131072) AS key) AS t
+    ON CONFLICT ON CONSTRAINT kvs_2023_01_08_cafef00ddeadbeafface864299792458_pkc
+    DO UPDATE
+    SET val = EXCLUDED.val
+    WHERE tgt.val <> EXCLUDED.val
+  " \
+  || exec printf 'Unable to populate a test table.\n'
+
 ./bloom

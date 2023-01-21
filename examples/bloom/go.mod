@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/jackc/pgx/v5 v5.2.0
-	github.com/takanoriyanagitani/go-local-filter/v2 v2.8.0
+	github.com/takanoriyanagitani/go-local-filter/v2 v2.11.0
 )
 
 require (
