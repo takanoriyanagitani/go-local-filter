@@ -32,10 +32,11 @@ func (raw *testPlanKeyRaw) toKey(buf *strings.Builder) (key testPlanKey, e error
 }
 
 var testPlanTmpl *template.Template = template.Must(template.New("plan").Parse(`
-	{{define "GetKeysAll"}}
+	{{define "GetKeysAllLimited"}}
 		SELECT rowid::INTEGER
 		FROM {{ .bucketName }}
 		ORDER BY key
+		LIMIT 16383
 	{{end}}
 
 	{{define "GetByKey"}}
@@ -55,7 +56,7 @@ var testPlanGetKeys local.GetKeys[*sql.DB, testPlanBucket, testPlanFilter, testP
 	f *testPlanFilter,
 ) (keys []testPlanKey, e error) {
 	var queryBuf strings.Builder
-	e = testPlanTmpl.ExecuteTemplate(&queryBuf, "GetKeysAll", map[string]interface{}{
+	e = testPlanTmpl.ExecuteTemplate(&queryBuf, "GetKeysAllLimited", map[string]interface{}{
 		"bucketName": b.name,
 	})
 	if nil != e {
@@ -172,7 +173,26 @@ var testPlanGetByKeyEncoded local.GetByKey[
 	}
 }
 
-var got2consumer local.Got2Consumer[
+func testPlanGetByKeyDecodedNew(
+	buf *testPlanEncoded,
+	filterDecoded func(d *testPlanDecoded, f *testPlanFilter) (keep bool),
+	b *testPlanDecodedBuilder,
+) local.GetByKey[
+	*sql.DB,
+	testPlanBucket,
+	testPlanFilter,
+	testPlanKey,
+	testPlanDecoded,
+] {
+	return local.GetByKeyDecodedNew(
+		testPlanGetByKeyEncoded,
+		func(e *testPlanEncoded) (d testPlanDecoded, err error) { return b.fromEncoded(e) },
+		buf,
+		filterDecoded,
+	)
+}
+
+var got2consumerEncoded local.Got2Consumer[
 	*sql.DB,
 	testPlanKey,
 	testPlanFilter,
@@ -198,7 +218,7 @@ func planSample() {
 		return
 	}
 	var buf testPlanEncoded
-	e = got2consumer(
+	e = got2consumerEncoded(
 		context.Background(),
 		db,
 		&bucket,
