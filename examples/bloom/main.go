@@ -5,4 +5,5 @@ func main() {
 	remoteSample()
 	iterSample()
 	indirectSample()
+	planSample()
 }
