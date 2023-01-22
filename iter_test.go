@@ -11,6 +11,23 @@ type testIterPacked struct {
 	val [21]uint8
 }
 
+func (p *testIterPacked) unpack() ([]testIterUnpacked, error) {
+	var subBucket uint16 = (uint16(p.key) << 8) | uint16(p.val[0])
+	i, _ := binary.Varint(p.val[1:9])
+	var rowId int32 = int32(i >> 32)
+	var bloom [2]uint64 = [2]uint64{
+		binary.BigEndian.Uint64(p.val[0x05:0x0d]),
+		binary.BigEndian.Uint64(p.val[0x0d:0x15]),
+	}
+	return []testIterUnpacked{
+		{
+			rowId,
+			subBucket,
+			bloom,
+		},
+	}, nil
+}
+
 type testIterUnpacked struct {
 	rowId     int32
 	subBucket uint16
@@ -925,6 +942,165 @@ func TestIter(t *testing.T) {
 			t.Run("no error", assertNil(e))
 			t.Run("stop", assertEq(stop, true))
 			t.Run("two items", assertEq(len(buf), 2))
+		})
+	})
+
+	t.Run("IterConsumerFiltered", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("ConsumerUnpackedNew", func(t *testing.T) {
+			t.Parallel()
+
+			t.Run("empty", func(t *testing.T) {
+				t.Parallel()
+
+				var unpackedItems []testIterUnpacked
+				var unpackedConsumer IterConsumerFiltered[testIterUnpacked, testIterFilter] = func(
+					unpacked *testIterUnpacked,
+					f *testIterFilter,
+				) (stop bool, e error) {
+					unpackedItems = append(unpackedItems, *unpacked)
+					return
+				}
+
+				packed2unpacked := func(p *testIterPacked) ([]testIterUnpacked, error) {
+					return nil, nil
+				}
+
+				filterPacked := func(p *testIterPacked, f *testIterFilter) (keep bool) {
+					return true
+				}
+
+				var packedConsumer IterConsumerFiltered[
+					testIterPacked,
+					testIterFilter,
+				] = ConsumerUnpackedNew(
+					unpackedConsumer,
+					packed2unpacked,
+					filterPacked,
+				)
+
+				var buf testIterPacked
+				f := testIterFilter{}
+				stop, e := packedConsumer(&buf, &f)
+				t.Run("no error", assertNil(e))
+				t.Run("non stop", assertEq(stop, false))
+				t.Run("no items", assertEq(len(unpackedItems), 0))
+			})
+
+			t.Run("coarse filter", func(t *testing.T) {
+				t.Parallel()
+
+				var unpackedItems []testIterUnpacked
+				var unpackedConsumer IterConsumerFiltered[testIterUnpacked, testIterFilter] = func(
+					unpacked *testIterUnpacked,
+					f *testIterFilter,
+				) (stop bool, e error) {
+					unpackedItems = append(unpackedItems, *unpacked)
+					return
+				}
+
+				packed2unpacked := func(p *testIterPacked) ([]testIterUnpacked, error) {
+					return nil, nil
+				}
+
+				filterPacked := func(p *testIterPacked, f *testIterFilter) (keep bool) {
+					return false
+				}
+
+				var packedConsumer IterConsumerFiltered[
+					testIterPacked,
+					testIterFilter,
+				] = ConsumerUnpackedNew(
+					unpackedConsumer,
+					packed2unpacked,
+					filterPacked,
+				)
+
+				var buf testIterPacked
+				f := testIterFilter{}
+				stop, e := packedConsumer(&buf, &f)
+				t.Run("no error", assertNil(e))
+				t.Run("non stop", assertEq(stop, false))
+				t.Run("no items", assertEq(len(unpackedItems), 0))
+			})
+
+			t.Run("single item", func(t *testing.T) {
+				t.Parallel()
+
+				var unpackedItems []testIterUnpacked
+				var unpackedConsumer IterConsumerFiltered[testIterUnpacked, testIterFilter] = func(
+					unpacked *testIterUnpacked,
+					f *testIterFilter,
+				) (stop bool, e error) {
+					unpackedItems = append(unpackedItems, *unpacked)
+					return
+				}
+
+				packed2unpacked := func(p *testIterPacked) ([]testIterUnpacked, error) {
+					return p.unpack()
+				}
+
+				filterPacked := func(p *testIterPacked, f *testIterFilter) (keep bool) {
+					return true
+				}
+
+				var packedConsumer IterConsumerFiltered[
+					testIterPacked,
+					testIterFilter,
+				] = ConsumerUnpackedNew(
+					unpackedConsumer,
+					packed2unpacked,
+					filterPacked,
+				)
+
+				var buf testIterPacked
+				f := testIterFilter{}
+				stop, e := packedConsumer(&buf, &f)
+				t.Run("no error", assertNil(e))
+				t.Run("non stop", assertEq(stop, false))
+				t.Run("1 item", assertEq(len(unpackedItems), 1))
+			})
+
+			t.Run("too many items", func(t *testing.T) {
+				t.Parallel()
+
+				var unpackedItems []testIterUnpacked = []testIterUnpacked{
+					{},
+					{},
+				}
+				var unpackedConsumer IterConsumerFiltered[testIterUnpacked, testIterFilter] = func(
+					unpacked *testIterUnpacked,
+					f *testIterFilter,
+				) (stop bool, e error) {
+					unpackedItems = append(unpackedItems, *unpacked)
+					return 2 < len(unpackedItems), nil
+				}
+
+				packed2unpacked := func(p *testIterPacked) ([]testIterUnpacked, error) {
+					return p.unpack()
+				}
+
+				filterPacked := func(p *testIterPacked, f *testIterFilter) (keep bool) {
+					return true
+				}
+
+				var packedConsumer IterConsumerFiltered[
+					testIterPacked,
+					testIterFilter,
+				] = ConsumerUnpackedNew(
+					unpackedConsumer,
+					packed2unpacked,
+					filterPacked,
+				)
+
+				var buf testIterPacked
+				f := testIterFilter{}
+				stop, e := packedConsumer(&buf, &f)
+				t.Run("no error", assertNil(e))
+				t.Run("stop", assertEq(stop, true))
+				t.Run("3 items", assertEq(len(unpackedItems), 3))
+			})
 		})
 	})
 }

@@ -259,3 +259,33 @@ func Iter2ConsumerNewUnpacked[I, P, F, U any](
 		return iterErr(iter)
 	}
 }
+
+type IterConsumerFiltered[T, F any] func(value *T, filter *F) (stop bool, e error)
+
+func ConsumerUnpackedNew[P, U, F any](
+	unpackedConsumer IterConsumerFiltered[U, F],
+	packed2unpacked func(packed *P) (unpacked []U, e error),
+	filterPacked func(packed *P, filter *F) (keep bool),
+) IterConsumerFiltered[P, F] {
+	return func(packed *P, filter *F) (stop bool, e error) {
+		var keep bool = filterPacked(packed, filter)
+		if !keep {
+			return false, nil
+		}
+		unpacked, e := packed2unpacked(packed)
+		if nil != e {
+			return true, e
+		}
+		for _, unpackedItem := range unpacked {
+			var item U = unpackedItem
+			stop, e := unpackedConsumer(&item, filter)
+			if nil != e {
+				return stop, e
+			}
+			if stop {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+}
