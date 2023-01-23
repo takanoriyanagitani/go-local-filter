@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"text/template"
@@ -18,6 +19,22 @@ type testPlanBucket struct{ name string }
 type testPlanFilter struct {
 	key   int32
 	bloom int64
+}
+
+func (f testPlanFilter) WithBloom(bloom int64) testPlanFilter {
+	var key int32 = f.key
+	return testPlanFilter{
+		key,
+		bloom,
+	}
+}
+
+func (f testPlanFilter) WithBloomString(bloom string) testPlanFilter {
+	i, e := strconv.ParseInt(bloom, 10, 64)
+	if nil == e {
+		return f.WithBloom(i)
+	}
+	return f
 }
 
 type testPlanKeyRaw struct{ key []byte }
@@ -265,6 +282,7 @@ var testPlanGetDirect local.Got2Consumer[
 	buf *testPlanDecoded,
 	consumer func(val *testPlanDecoded, f *testPlanFilter) (stop bool, e error),
 ) error {
+	log.Printf("direct scan\n")
 	var queryBuf strings.Builder
 	e := testPlanTmpl.ExecuteTemplate(&queryBuf, "GetAllDirectLimited", map[string]interface{}{
 		"bucketName": bucket.name,
@@ -278,8 +296,43 @@ var testPlanGetDirect local.Got2Consumer[
 		return e
 	}
 	defer rows.Close()
-	return nil
+
+	var builder testPlanDecodedBuilder
+	var consumerEncoded local.IterConsumerFiltered[
+		testPlanEncoded,
+		testPlanFilter,
+	] = local.ConsumerDecodedNew(
+		consumer,
+		func(encoded *testPlanEncoded) (decoded testPlanDecoded, e error) {
+			return builder.fromEncoded(encoded)
+		},
+		func(encoded *testPlanEncoded, f *testPlanFilter) (keep bool) { return true },
+	)
+	var consumeMany func(
+		iter *sql.Rows,
+		f *testPlanFilter,
+		icf local.IterConsumerFiltered[testPlanEncoded, testPlanFilter],
+		buf *testPlanEncoded,
+	) (stop bool, e error) = local.IterConsumeManyFilteredNew[
+		*sql.Rows,
+		testPlanEncoded,
+		testPlanFilter,
+	](
+		func(iter *sql.Rows) (hasNext bool) { return iter.Next() },
+		func(iter *sql.Rows, val *testPlanEncoded) error { return iter.Scan(&val.key, &val.val) },
+		func(iter *sql.Rows) error { return iter.Err() },
+	)
+	var encodedBuf testPlanEncoded
+	_, e = consumeMany(
+		rows,
+		f,
+		consumerEncoded,
+		&encodedBuf,
+	)
+	return e
 }
+
+func testPlanDoDirectScan(f *testPlanFilter) (directScan bool) { return -1 == f.bloom }
 
 func planSample() {
 	const pgxConnStr string = ""
@@ -323,11 +376,25 @@ func planSample() {
 		func(d *testPlanDecoded, f *testPlanFilter) (keep bool) { return true },
 		&testPlanDecodedBuilder{},
 	)
-	e = got2consumerDecoded(
+	var getByPlan func(
+		ctx context.Context,
+		con *sql.DB,
+		b *testPlanBucket,
+		f *testPlanFilter,
+		buf *testPlanDecoded,
+		consumer func(val *testPlanDecoded, f *testPlanFilter) (stop bool, e error),
+	) error = local.GetWithPlanNew(
+		got2consumerDecoded,
+		testPlanGetDirect,
+		testPlanDoDirectScan,
+	)
+	var filter testPlanFilter = testPlanFilter{}.
+		WithBloomString(os.Getenv("ENV_BLOOM"))
+	e = getByPlan(
 		context.Background(),
 		db,
 		&bucket,
-		&testPlanFilter{},
+		&filter,
 		&bufDecoded,
 		consumer,
 	)

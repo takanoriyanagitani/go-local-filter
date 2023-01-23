@@ -93,4 +93,5 @@ psql \
   " \
   || exec printf 'Unable to populate a test table.\n'
 
+export ENV_BLOOM=-1
 ./bloom
