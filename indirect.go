@@ -162,6 +162,12 @@ func GetByKeysNew[G, K, F, B, V any](
 	}
 }
 
+// GetWithPlanNew creates a closure which get items.
+//
+// # Arguments
+//   - getByKeys: Gets items using keys(indirect scan).
+//   - getDirect: Gets items(direct scan).
+//   - plan:      Checks if the scan must be direct or not.
 func GetWithPlanNew[G, K, F, B, V any](
 	getByKeys Got2Consumer[G, K, F, B, V],
 	getDirect Got2Consumer[G, K, F, B, V],
