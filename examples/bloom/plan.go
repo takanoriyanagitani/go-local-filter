@@ -47,6 +47,14 @@ var testPlanTmpl *template.Template = template.Must(template.New("plan").Parse(`
 		WHERE rowid=$1
 		LIMIT 1
 	{{end}}
+
+	{{define "GetAllDirectLimited"}}
+		SELECT
+			key::BYTEA,
+			val::BYTEA
+		FROM {{ .bucketName }}
+		LIMIT 16383
+	{{end}}
 `))
 
 var testPlanGetKeys local.GetKeys[*sql.DB, testPlanBucket, testPlanFilter, testPlanKey] = func(
@@ -111,7 +119,7 @@ func (b *testPlanDecodedBuilder) fromEncoded(raw *testPlanEncoded) (d testPlanDe
 		return d, e
 	}
 	d.key = uint32(u)
-	e = json.Unmarshal(raw.val, b.buf1)
+	e = json.Unmarshal(raw.val, &b.buf1)
 	d.val = b.buf1
 	return d, e
 }
@@ -125,6 +133,36 @@ type testPlanItem struct {
 	Second uint8  `json:"second"`
 	SeqNo  int32  `json:"seqno"`
 	Bloom  uint64 `json:"bloom"`
+}
+
+type testPlanFlatBuilder struct{ buf []testPlanFlat }
+
+func (b *testPlanFlatBuilder) fromDecoded(d *testPlanDecoded) []testPlanFlat {
+	b.buf = b.buf[:0]
+	for _, item := range d.val {
+		var flat testPlanFlat = testPlanFlat{
+			key:    d.key,
+			second: item.Second,
+			seqno:  item.SeqNo,
+			bloom:  item.Bloom,
+		}
+		b.buf = append(b.buf, flat)
+	}
+	return b.buf
+}
+
+func testPlanConsumerUnpackedNew(
+	unpackedConsumer local.IterConsumerFiltered[testPlanFlat, testPlanFilter],
+	filterPacked func(p *testPlanDecoded, f *testPlanFilter) (keep bool),
+	builder *testPlanFlatBuilder,
+) local.IterConsumerFiltered[testPlanDecoded, testPlanFilter] {
+	return local.ConsumerUnpackedNew(
+		unpackedConsumer,
+		func(packed *testPlanDecoded) (unpacked []testPlanFlat, e error) {
+			return builder.fromDecoded(packed), nil
+		},
+		filterPacked,
+	)
 }
 
 type testPlanFlat struct {
@@ -192,13 +230,56 @@ func testPlanGetByKeyDecodedNew(
 	)
 }
 
-var got2consumerEncoded local.Got2Consumer[
+func testPlanDecoded2consumerNew(
+	buf *testPlanEncoded,
+	filterDecoded func(d *testPlanDecoded, f *testPlanFilter) (keep bool),
+	b *testPlanDecodedBuilder,
+) local.Got2Consumer[
 	*sql.DB,
 	testPlanKey,
 	testPlanFilter,
 	testPlanBucket,
-	testPlanEncoded,
-] = local.GetByKeysNew(testPlanGetKeys, testPlanGetByKeyEncoded)
+	testPlanDecoded,
+] {
+	return local.GetByKeysNew(
+		testPlanGetKeys,
+		testPlanGetByKeyDecodedNew(
+			buf,
+			filterDecoded,
+			b,
+		),
+	)
+}
+
+var testPlanGetDirect local.Got2Consumer[
+	*sql.DB,
+	testPlanKey,
+	testPlanFilter,
+	testPlanBucket,
+	testPlanDecoded,
+] = func(
+	ctx context.Context,
+	con *sql.DB,
+	bucket *testPlanBucket,
+	f *testPlanFilter,
+	buf *testPlanDecoded,
+	consumer func(val *testPlanDecoded, f *testPlanFilter) (stop bool, e error),
+) error {
+	var queryBuf strings.Builder
+	e := testPlanTmpl.ExecuteTemplate(&queryBuf, "GetAllDirectLimited", map[string]interface{}{
+		"bucketName": bucket.name,
+	})
+	if nil != e {
+		return e
+	}
+
+	rows, e := con.QueryContext(ctx, queryBuf.String())
+	if nil != e {
+		return e
+	}
+	defer rows.Close()
+	return nil
+}
 
 func planSample() {
 	const pgxConnStr string = ""
@@ -212,23 +293,47 @@ func planSample() {
 		name: "kvs_2023_01_08_cafef00ddeadbeafface864299792458",
 	}
 
-	var raws []testPlanEncoded
-	consumer := func(encoded *testPlanEncoded, f *testPlanFilter) (stop bool, e error) {
-		raws = append(raws, *encoded)
+	var flatItems []testPlanFlat
+	var unpackedConsumer local.IterConsumerFiltered[testPlanFlat, testPlanFilter] = func(
+		val *testPlanFlat,
+		f *testPlanFilter,
+	) (stop bool, e error) {
+		flatItems = append(flatItems, *val)
 		return
 	}
+	var consumer local.IterConsumerFiltered[
+		testPlanDecoded,
+		testPlanFilter,
+	] = testPlanConsumerUnpackedNew(
+		unpackedConsumer,
+		func(p *testPlanDecoded, f *testPlanFilter) (keep bool) { return true },
+		&testPlanFlatBuilder{},
+	)
+
 	var buf testPlanEncoded
-	e = got2consumerEncoded(
+	var bufDecoded testPlanDecoded
+	var got2consumerDecoded local.Got2Consumer[
+		*sql.DB,
+		testPlanKey,
+		testPlanFilter,
+		testPlanBucket,
+		testPlanDecoded,
+	] = testPlanDecoded2consumerNew(
+		&buf,
+		func(d *testPlanDecoded, f *testPlanFilter) (keep bool) { return true },
+		&testPlanDecodedBuilder{},
+	)
+	e = got2consumerDecoded(
 		context.Background(),
 		db,
 		&bucket,
-		nil,
-		&buf,
+		&testPlanFilter{},
+		&bufDecoded,
 		consumer,
 	)
 	if nil != e {
 		log.Fatal(e)
 	}
 
-	log.Printf("raw len: %v\n", len(raws))
+	log.Printf("raw len: %v\n", len(flatItems))
 }
