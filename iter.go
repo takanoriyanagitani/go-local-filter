@@ -307,3 +307,26 @@ func ConsumerDecodedNew[E, D, F any](
 		return decodedConsumer(&decoded, filter)
 	}
 }
+
+func IterConsumeManyFilteredNew[I, T, F any](
+	iterNext func(iter I) (hasNext bool),
+	iterGet func(iter I, value *T) error,
+	iterErr func(iter I) error,
+) func(iter I, filter *F, consumer IterConsumerFiltered[T, F], buf *T) (stop bool, e error) {
+	return func(iter I, filter *F, cf IterConsumerFiltered[T, F], buf *T) (stop bool, e error) {
+		for iterNext(iter) {
+			e = iterGet(iter, buf)
+			if nil != e {
+				return true, e
+			}
+			stop, e = cf(buf, filter)
+			if nil != e {
+				return stop, e
+			}
+			if stop {
+				return true, nil
+			}
+		}
+		return false, iterErr(iter)
+	}
+}

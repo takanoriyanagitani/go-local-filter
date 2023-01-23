@@ -1109,6 +1109,135 @@ func TestIter(t *testing.T) {
 				t.Run("3 items", assertEq(len(unpackedItems), 3))
 			})
 		})
+
+		t.Run("IterConsumeManyFilteredNew", func(t *testing.T) {
+			t.Parallel()
+
+			t.Run("empty", func(t *testing.T) {
+				t.Parallel()
+
+				var dummyIter uint8 = 0
+				iterNext := func(_dummy *uint8) (hasNext bool) { return false }
+				iterGet := func(_dummy *uint8, val *testIterPacked) error { return nil }
+				iterErr := func(_dummy *uint8) error { return nil }
+
+				var items []testIterPacked
+				var consumer IterConsumerFiltered[testIterPacked, testIterFilter] = func(
+					val *testIterPacked,
+					f *testIterFilter,
+				) (stop bool, e error) {
+					items = append(items, *val)
+					return
+				}
+				var f func(
+					dummyIter *uint8,
+					f *testIterFilter,
+					consumer IterConsumerFiltered[testIterPacked, testIterFilter],
+					buf *testIterPacked,
+				) (stop bool, e error) = IterConsumeManyFilteredNew[
+					*uint8,
+					testIterPacked,
+					testIterFilter,
+				](
+					iterNext,
+					iterGet,
+					iterErr,
+				)
+
+				var buf testIterPacked
+				var filter testIterFilter = testIterFilter{}
+				stop, e := f(&dummyIter, &filter, consumer, &buf)
+				t.Run("no error", assertNil(e))
+				t.Run("non stop", assertEq(stop, false))
+				t.Run("no items", assertEq(len(items), 0))
+			})
+
+			t.Run("single item", func(t *testing.T) {
+				t.Parallel()
+
+				var dummyIter uint8 = 0
+				iterNext := func(dummy *uint8) (hasNext bool) {
+					hasNext = 0 == (*dummy)
+					*dummy += 1
+					return
+				}
+				iterGet := func(_dummy *uint8, val *testIterPacked) error { return nil }
+				iterErr := func(_dummy *uint8) error { return nil }
+
+				var items []testIterPacked
+				var consumer IterConsumerFiltered[testIterPacked, testIterFilter] = func(
+					val *testIterPacked,
+					f *testIterFilter,
+				) (stop bool, e error) {
+					items = append(items, *val)
+					return
+				}
+				var f func(
+					dummyIter *uint8,
+					f *testIterFilter,
+					consumer IterConsumerFiltered[testIterPacked, testIterFilter],
+					buf *testIterPacked,
+				) (stop bool, e error) = IterConsumeManyFilteredNew[
+					*uint8,
+					testIterPacked,
+					testIterFilter,
+				](
+					iterNext,
+					iterGet,
+					iterErr,
+				)
+
+				var buf testIterPacked
+				var filter testIterFilter = testIterFilter{}
+				stop, e := f(&dummyIter, &filter, consumer, &buf)
+				t.Run("no error", assertNil(e))
+				t.Run("non stop", assertEq(stop, false))
+				t.Run("single item", assertEq(len(items), 1))
+			})
+
+			t.Run("too many items", func(t *testing.T) {
+				t.Parallel()
+
+				var dummyIter uint8 = 0
+				iterNext := func(dummy *uint8) (hasNext bool) {
+					hasNext = (*dummy) < 10
+					*dummy += 1
+					return
+				}
+				iterGet := func(_dummy *uint8, val *testIterPacked) error { return nil }
+				iterErr := func(_dummy *uint8) error { return nil }
+
+				var items []testIterPacked
+				var consumer IterConsumerFiltered[testIterPacked, testIterFilter] = func(
+					val *testIterPacked,
+					f *testIterFilter,
+				) (stop bool, e error) {
+					items = append(items, *val)
+					return 5 <= len(items), nil
+				}
+				var f func(
+					dummyIter *uint8,
+					f *testIterFilter,
+					consumer IterConsumerFiltered[testIterPacked, testIterFilter],
+					buf *testIterPacked,
+				) (stop bool, e error) = IterConsumeManyFilteredNew[
+					*uint8,
+					testIterPacked,
+					testIterFilter,
+				](
+					iterNext,
+					iterGet,
+					iterErr,
+				)
+
+				var buf testIterPacked
+				var filter testIterFilter = testIterFilter{}
+				stop, e := f(&dummyIter, &filter, consumer, &buf)
+				t.Run("no error", assertNil(e))
+				t.Run("stop", assertEq(stop, true))
+				t.Run("single item", assertEq(len(items), 5))
+			})
+		})
 	})
 
 	t.Run("ConsumerDecodedNew", func(t *testing.T) {
