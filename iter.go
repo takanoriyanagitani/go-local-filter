@@ -289,3 +289,21 @@ func ConsumerUnpackedNew[P, U, F any](
 		return false, nil
 	}
 }
+
+func ConsumerDecodedNew[E, D, F any](
+	decodedConsumer IterConsumerFiltered[D, F],
+	decoder func(encoded *E) (decoded D, e error),
+	filterEncoded func(encoded *E, filter *F) (keep bool),
+) IterConsumerFiltered[E, F] {
+	return func(encoded *E, filter *F) (stop bool, e error) {
+		var keep bool = filterEncoded(encoded, filter)
+		if !keep {
+			return false, nil
+		}
+		decoded, e := decoder(encoded)
+		if nil != e {
+			return true, e
+		}
+		return decodedConsumer(&decoded, filter)
+	}
+}

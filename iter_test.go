@@ -28,6 +28,13 @@ func (p *testIterPacked) unpack() ([]testIterUnpacked, error) {
 	}, nil
 }
 
+type testIterDecoded struct {
+	key    uint8
+	subKey uint8
+	rowId  int32
+	dat    [16]byte
+}
+
 type testIterUnpacked struct {
 	rowId     int32
 	subBucket uint16
@@ -1101,6 +1108,70 @@ func TestIter(t *testing.T) {
 				t.Run("stop", assertEq(stop, true))
 				t.Run("3 items", assertEq(len(unpackedItems), 3))
 			})
+		})
+	})
+
+	t.Run("ConsumerDecodedNew", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("empty", func(t *testing.T) {
+			t.Parallel()
+
+			var decodedItems []testIterDecoded
+			var decodedConsumer IterConsumerFiltered[testIterDecoded, testIterFilter] = func(
+				val *testIterDecoded,
+				f *testIterFilter,
+			) (stop bool, e error) {
+				decodedItems = append(decodedItems, *val)
+				return
+			}
+			decoder := func(encoded *testIterPacked) (d testIterDecoded, e error) { return }
+			filterEncoded := func(e *testIterPacked, f *testIterFilter) (keep bool) { return }
+			var encodedConsumer IterConsumerFiltered[
+				testIterPacked,
+				testIterFilter,
+			] = ConsumerDecodedNew(
+				decodedConsumer,
+				decoder,
+				filterEncoded,
+			)
+
+			var encoded testIterPacked = testIterPacked{}
+			var f testIterFilter = testIterFilter{}
+			stop, e := encodedConsumer(&encoded, &f)
+			t.Run("no error", assertNil(e))
+			t.Run("non stop", assertEq(stop, false))
+			t.Run("no item", assertEq(len(decodedItems), 0))
+		})
+
+		t.Run("encoded filter ok", func(t *testing.T) {
+			t.Parallel()
+
+			var decodedItems []testIterDecoded
+			var decodedConsumer IterConsumerFiltered[testIterDecoded, testIterFilter] = func(
+				val *testIterDecoded,
+				f *testIterFilter,
+			) (stop bool, e error) {
+				decodedItems = append(decodedItems, *val)
+				return
+			}
+			decoder := func(encoded *testIterPacked) (d testIterDecoded, e error) { return }
+			filterEncoded := func(e *testIterPacked, f *testIterFilter) (keep bool) { return true }
+			var encodedConsumer IterConsumerFiltered[
+				testIterPacked,
+				testIterFilter,
+			] = ConsumerDecodedNew(
+				decodedConsumer,
+				decoder,
+				filterEncoded,
+			)
+
+			var encoded testIterPacked = testIterPacked{}
+			var f testIterFilter = testIterFilter{}
+			stop, e := encodedConsumer(&encoded, &f)
+			t.Run("no error", assertNil(e))
+			t.Run("non stop", assertEq(stop, false))
+			t.Run("single item", assertEq(len(decodedItems), 1))
 		})
 	})
 }
