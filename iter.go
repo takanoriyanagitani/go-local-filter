@@ -308,6 +308,12 @@ func ConsumerDecodedNew[E, D, F any](
 	}
 }
 
+// IterConsumeManyFilteredNew creates a closure which consumes an iterator.
+//
+// # Arguments
+//   - iterNext: Checks if an iterator has a next item or not.
+//   - iterGet: Gets a value from an iterator.
+//   - iterErr: Gets an error from an iterator.
 func IterConsumeManyFilteredNew[I, T, F any](
 	iterNext func(iter I) (hasNext bool),
 	iterGet func(iter I, value *T) error,
