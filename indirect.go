@@ -4,6 +4,12 @@ import (
 	"context"
 )
 
+// GetByKeyNewDecoded creates a closure which gets a decoded item.
+//
+// # Arguments
+//   - getEncodedByKey: Gets an encoded item.
+//   - decoder: Gets a decoded item from an encoded item.
+//   - buf: The buffer to save an encoded item.
 func GetByKeyNewDecoded[G, K, E, D any](
 	getEncodedByKey func(ctx context.Context, con G, key K, encoded *E) (got bool, e error),
 	decoder Decode[*E, D],
