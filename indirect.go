@@ -32,6 +32,14 @@ func GetByKeyNewDecoded[G, K, E, D any](
 	}
 }
 
+// GetByKeysNewUnnested creates a closure which gets unnested items.
+//
+// # Arguments
+//   - getByKey: Gets a packed item by a key.
+//   - unnest: Gets unnested items from a packed item.
+//   - filterPacked: Checks if a packed item must be used or not.
+//   - filterUnpacked: Check if an unpacked item must be used or not.
+//   - consumeUnpacked: Uses an unpacked item.
 func GetByKeysNewUnnested[G, K, P, F, U any](
 	getByKey func(ctx context.Context, con G, key K, packed *P) (got bool, e error),
 	unnest Unnest[P, U],
