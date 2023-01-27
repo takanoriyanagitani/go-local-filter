@@ -84,6 +84,13 @@ func GetByKeysNewUnnested[G, K, P, F, U any](
 	}
 }
 
+// GetKeys must return keys from a bucket using a filter.
+//
+// # Arguments
+//   - ctx: A context.
+//   - con: A data store which may contain keys.
+//   - bucket: A bucket which may contain keys.
+//   - filter: A filter to minimize keys to get.
 type GetKeys[D, B, F, K any] func(
 	ctx context.Context,
 	con D,
