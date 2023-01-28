@@ -6,4 +6,5 @@ func main() {
 	iterSample()
 	indirectSample()
 	planSample()
+	bucketFilterSample()
 }
