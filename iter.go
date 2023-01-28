@@ -262,6 +262,12 @@ func Iter2ConsumerNewUnpacked[I, P, F, U any](
 
 type IterConsumerFiltered[T, F any] func(value *T, filter *F) (stop bool, e error)
 
+// ConsumerUnpackedNew creates a new IterConsumerFiltered which consumes packed items.
+//
+// # Arguments
+//   - unpackedConsumer: Uses unpacked items.
+//   - packed2unpacked: Gets unpacked items from a packed item.
+//   - filterPacked: Checks if a packed item must be used or not.
 func ConsumerUnpackedNew[P, U, F any](
 	unpackedConsumer IterConsumerFiltered[U, F],
 	packed2unpacked func(packed *P) (unpacked []U, e error),
