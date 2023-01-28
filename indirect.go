@@ -98,6 +98,22 @@ type GetKeys[D, B, F, K any] func(
 	filter *F,
 ) (keys []K, e error)
 
+// WithBucketFilter creates a new GetKeys which gets keys after checking a bucket.
+//
+// # Arguments
+//   - checkBucket: Must return true if a bucket must be checked.
+func (g GetKeys[D, B, F, K]) WithBucketFilter(
+	checkBucket func(ctx context.Context, con D, bucket *B, filter *F) (checkMe bool),
+) GetKeys[D, B, F, K] {
+	return func(ctx context.Context, con D, bucket *B, filter *F) (keys []K, e error) {
+		var checkMe bool = checkBucket(ctx, con, bucket, filter)
+		if !checkMe {
+			return nil, nil
+		}
+		return g(ctx, con, bucket, filter)
+	}
+}
+
 type GetByKey[D, B, F, K, V any] func(
 	ctx context.Context,
 	con D,

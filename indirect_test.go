@@ -1128,4 +1128,94 @@ func TestIndirect(t *testing.T) {
 			t.Run("single item", assertEq(len(items), 1))
 		})
 	})
+
+	t.Run("GetKeys", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("WithBucketFilter", func(t *testing.T) {
+			t.Parallel()
+
+			t.Run("empty", func(t *testing.T) {
+				t.Parallel()
+
+				var dummyCon uint8 = 0
+				var dummyBucket string = "items_2023_01_28_cafef00ddeadbeafface864299792458"
+				var dummyFilter uint64 = 0x0123456789abcdef
+
+				var getKeys GetKeys[uint8, string, uint64, int32] = func(
+					_ctx context.Context,
+					_con uint8,
+					_bkt *string,
+					_flt *uint64,
+				) (keys []int32, e error) {
+					return
+				}
+
+				bucketFilter := func(
+					_ctx context.Context,
+					_con uint8,
+					bucket *string,
+					filter *uint64,
+				) (checkMe bool) {
+					return false
+				}
+
+				var withBucketFilter GetKeys[
+					uint8, string, uint64, int32,
+				] = getKeys.WithBucketFilter(
+					bucketFilter,
+				)
+
+				keys, e := withBucketFilter(
+					context.Background(),
+					dummyCon,
+					&dummyBucket,
+					&dummyFilter,
+				)
+				t.Run("no error", assertNil(e))
+				t.Run("no items", assertEq(len(keys), 0))
+			})
+
+			t.Run("try get keys from a bucket", func(t *testing.T) {
+				t.Parallel()
+
+				var dummyCon uint8 = 0
+				var dummyBucket string = "items_2023_01_28_cafef00ddeadbeafface864299792458"
+				var dummyFilter uint64 = 0x0123456789abcdef
+
+				var getKeys GetKeys[uint8, string, uint64, int32] = func(
+					_ctx context.Context,
+					_con uint8,
+					_bkt *string,
+					_flt *uint64,
+				) (keys []int32, e error) {
+					return []int32{0x42}, nil
+				}
+
+				bucketFilter := func(
+					_ctx context.Context,
+					_con uint8,
+					bucket *string,
+					filter *uint64,
+				) (checkMe bool) {
+					return true
+				}
+
+				var withBucketFilter GetKeys[
+					uint8, string, uint64, int32,
+				] = getKeys.WithBucketFilter(
+					bucketFilter,
+				)
+
+				keys, e := withBucketFilter(
+					context.Background(),
+					dummyCon,
+					&dummyBucket,
+					&dummyFilter,
+				)
+				t.Run("no error", assertNil(e))
+				t.Run("single item", assertEq(len(keys), 1))
+			})
+		})
+	})
 }
