@@ -114,6 +114,15 @@ func (g GetKeys[D, B, F, K]) WithBucketFilter(
 	}
 }
 
+// GetByKey must get a value(if exists).
+//
+// # Arguments
+//   - ctx: A context.
+//   - con: A data store connection.
+//   - bucket: A bucket which may have an item to get.
+//   - key: The key of the item to get.
+//   - val: The buffer to save an item info.
+//   - filter: The filter which may be used to get or skip getting an item.
 type GetByKey[D, B, F, K, V any] func(
 	ctx context.Context,
 	con D,
