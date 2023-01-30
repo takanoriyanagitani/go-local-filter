@@ -132,6 +132,13 @@ type GetByKey[D, B, F, K, V any] func(
 	filter *F,
 ) (got bool, e error)
 
+// GetByKeyDecodedNew creates a new closure which gets a decoded value.
+//
+// # Arguments
+//   - getEncodedByKey: Gets an encoded value.
+//   - decoder: Gets a decoded value from an encoded value.
+//   - buf: A buffer to save an encoded item.
+//   - filterDecoded: Checks if a decoded item must be used or not.
 func GetByKeyDecodedNew[G, B, F, K, E, D any](
 	getEncodedByKey GetByKey[G, B, F, K, E],
 	decoder func(encoded *E) (decoded D, e error),
