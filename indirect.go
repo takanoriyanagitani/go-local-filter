@@ -170,6 +170,15 @@ func GetByKeyDecodedNew[G, B, F, K, E, D any](
 	}
 }
 
+// Got2Consumer must consume values got from a bucket.
+//
+// # Arguments
+//   - ctx: A context.
+//   - con: A connection to a state provider.
+//   - bucket: A bucket which may contain items to get.
+//   - filter: A filter used to filter items.
+//   - buf: A buffer to save an item.
+//   - consumer: A closure which may use an item.
 type Got2Consumer[D, K, F, B, V any] func(
 	ctx context.Context,
 	con D,
