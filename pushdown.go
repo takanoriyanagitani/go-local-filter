@@ -68,7 +68,8 @@ func FilterRemoteNew[V, F any](
 	}
 }
 
-type PushDown[F any] func(filter F) bool
+// PushDown must return true to filter items by a remote service.
+type PushDown[F any] func(filter F) (useRemoteFilter bool)
 
 type ScanEstimate struct {
 	scans   float64
