@@ -71,6 +71,7 @@ func FilterRemoteNew[V, F any](
 // PushDown must return true to filter items by a remote service.
 type PushDown[F any] func(filter F) (useRemoteFilter bool)
 
+// ScanEstimate can be used to estimate costs to scan.
 type ScanEstimate struct {
 	scans   float64
 	latency float64
