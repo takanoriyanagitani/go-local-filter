@@ -77,6 +77,7 @@ type ScanEstimate struct {
 	latency float64
 }
 
+// ToCost estimates the cost to scan.
 func (e ScanEstimate) ToCost() float64 { return e.scans * e.latency }
 
 func ScanEstimateNew(numberOfScans, latencyPerScan float64) ScanEstimate {
