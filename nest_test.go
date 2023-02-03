@@ -22,7 +22,7 @@ func (p *testNestPackedItem) Unpack() (unpacked []testNestUnpackedItem) {
 		var ll uint16 = uint16(lo & 0xffff)
 
 		var status uint16 = lh
-		var full uint16 = uint16(p.key<<8) | (ll >> 8)
+		var full uint16 = (uint16(p.key) << 8) | (ll >> 8)
 		var valid uint8 = uint8(ll & 0xff)
 
 		unpacked = append(unpacked, testNestUnpackedItem{
