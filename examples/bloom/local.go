@@ -149,7 +149,7 @@ func localSample() {
 	const pgxConnStr string = ""
 	db, e := sql.Open("pgx", pgxConnStr)
 	if nil != e {
-		log.Fatal("%v\n", e)
+		log.Fatalf("%v\n", e)
 	}
 	defer db.Close()
 
@@ -205,7 +205,7 @@ func localSample() {
 		filter,
 	)
 	if nil != e {
-		log.Fatal("%v\n", e)
+		log.Fatalf("%v\n", e)
 	}
 
 	log.Printf("unpacked len: %v\n", len(unpacked))
