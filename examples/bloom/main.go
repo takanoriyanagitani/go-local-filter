@@ -7,4 +7,5 @@ func main() {
 	indirectSample()
 	planSample()
 	bucketFilterSample()
+	unpackSample()
 }
