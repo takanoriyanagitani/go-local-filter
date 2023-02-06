@@ -100,6 +100,11 @@ func (s ScanEstimate) UseIxScanByCount(limit float64) (useIxScan bool) {
 	return s.scans < limit
 }
 
+// PushdownNewByIxScanLimit creates a PushDown which uses a ScanEstimate.
+//
+// # Arguments
+//   - limit: Max number of scans using indices(exclusive).
+//   - filter2scan: Gets a ScanEstimate by a filter.
 func PushdownNewByIxScanLimit[F any](
 	limit float64,
 	filter2scan func(filter F) ScanEstimate,
