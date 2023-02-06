@@ -92,6 +92,10 @@ func ScanEstimateNew(numberOfScans, latencyPerScan float64) ScanEstimate {
 	}
 }
 
+// UseIxScanByCount checks if scans using indices must be used or not.
+//
+// # Arguments
+//   - limit: Max number of scans using indices(exclusive).
 func (s ScanEstimate) UseIxScanByCount(limit float64) (useIxScan bool) {
 	return s.scans < limit
 }
