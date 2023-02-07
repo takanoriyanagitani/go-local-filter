@@ -115,11 +115,17 @@ func PushdownNewByIxScanLimit[F any](
 	}
 }
 
+// ScanEstimates contains scan estimates(index scan, seq scan, ...)
 type ScanEstimates struct {
 	ix ScanEstimate
 	sq ScanEstimate
 }
 
+// ScanEstimatesNew creates a ScanEstimates.
+//
+// # Arguments
+//   - ixscan: A ScanEstimate for index scans.
+//   - sqscan: A ScanEstimate for sequential scans.
 func ScanEstimatesNew(ixscan, sqscan ScanEstimate) ScanEstimates {
 	return ScanEstimates{
 		ix: ixscan,
