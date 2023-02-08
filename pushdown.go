@@ -136,6 +136,7 @@ func ScanEstimatesNew(ixscan, sqscan ScanEstimate) ScanEstimates {
 func (s ScanEstimates) toIxScanCost() float64 { return s.ix.ToCost() }
 func (s ScanEstimates) toSqScanCost() float64 { return s.sq.ToCost() }
 
+// UseIxScan checks if an index scan must be used or not.
 func (s ScanEstimates) UseIxScan() bool { return s.toIxScanCost() < s.toSqScanCost() }
 
 func PushdownNewByCost[F any](
