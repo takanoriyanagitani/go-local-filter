@@ -4,6 +4,7 @@ import (
 	"context"
 )
 
+// Unnest must get unnested items from a packed item.
 type Unnest[P, U any] func(packed *P) (unnested []U, e error)
 
 // Iter2ConsumerNewUnnested creates a closure which consumes unnested items after filtering.
