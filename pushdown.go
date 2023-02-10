@@ -139,6 +139,10 @@ func (s ScanEstimates) toSqScanCost() float64 { return s.sq.ToCost() }
 // UseIxScan checks if an index scan must be used or not.
 func (s ScanEstimates) UseIxScan() bool { return s.toIxScanCost() < s.toSqScanCost() }
 
+// PushdownNewByCost creates a PushDown which uses a ScanEstimates.
+//
+// # Arguments
+//   - filter2estimates: Creates a ScanEstimates from a filter.
 func PushdownNewByCost[F any](
 	filter2estimates func(filter F) ScanEstimates,
 ) PushDown[F] {
