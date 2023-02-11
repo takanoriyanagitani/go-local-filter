@@ -825,6 +825,71 @@ func TestIter(t *testing.T) {
 		})
 	})
 
+	t.Run("IterConsumerNewPacked", func(t *testing.T) {
+		t.Parallel()
+
+		t.Run("single packed item", func(t *testing.T) {
+			t.Parallel()
+
+			var unpackBuf [2]uint32
+			unpack := func(packed *uint64) (unpacked []uint32, e error) {
+				var hi uint64 = (*packed) >> 32
+				var lo uint64 = (*packed) & 0xffff_ffff
+				unpackBuf[0] = uint32(hi)
+				unpackBuf[1] = uint32(lo)
+				return unpackBuf[:], nil
+			}
+
+			var cnt int = 0
+			var consumer IterConsumer[uint32] = func(_val *uint32) (stop bool, e error) {
+				cnt += 1
+				return false, nil
+			}
+			var packedConsumer IterConsumer[uint64] = IterConsumerNewPacked(
+				unpack,
+				consumer,
+			)
+
+			var i uint64 = 0x01234567_89abcdef
+			stop, e := packedConsumer(&i)
+			t.Run("no error", assertNil(e))
+			t.Run("non stop", assertEq(stop, false))
+			t.Run("two unpacked items", assertEq(cnt, 2))
+		})
+
+		t.Run("3 unpacked items", func(t *testing.T) {
+			t.Parallel()
+
+			var unpackBuf [2]uint32
+			unpack := func(packed *uint64) (unpacked []uint32, e error) {
+				var hi uint64 = (*packed) >> 32
+				var lo uint64 = (*packed) & 0xffff_ffff
+				unpackBuf[0] = uint32(hi)
+				unpackBuf[1] = uint32(lo)
+				return unpackBuf[:], nil
+			}
+
+			var cnt int = 0
+			var lmt int = 3
+			var consumer IterConsumer[uint32] = func(_val *uint32) (stop bool, e error) {
+				cnt += 1
+				return lmt <= cnt, nil
+			}
+			var packedConsumer IterConsumer[uint64] = IterConsumerNewPacked(
+				unpack,
+				consumer,
+			)
+
+			var i uint64 = 0x01234567_89abcdef
+			stop, e := packedConsumer(&i)
+			t.Run("no error", assertNil(e))
+			t.Run("non stop", assertEq(stop, false))
+			stop, e = packedConsumer(&i)
+			t.Run("stop", assertEq(stop, true))
+			t.Run("3 unpacked items", assertEq(cnt, 3))
+		})
+	})
+
 	t.Run("IterConsumerFilterMany", func(t *testing.T) {
 		t.Parallel()
 
