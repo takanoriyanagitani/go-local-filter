@@ -188,6 +188,11 @@ type Got2Consumer[D, K, F, B, V any] func(
 	consumer func(val *V, filter *F) (stop bool, e error),
 ) error
 
+// GetByKeysNew creates a closure which uses items got using keys.
+//
+// # Arguments
+//   - getKeys: Gets keys for items.
+//   - getByKey: Gets an item by a key.
 func GetByKeysNew[G, K, F, B, V any](
 	getKeys GetKeys[G, B, F, K],
 	getByKey GetByKey[G, B, F, K, V],
